@@ -8,7 +8,7 @@
 
 # 設定目標與路徑
 $targetVersion = "1.3.4.103349"
-$logFile = Join-Path $env:TEMP "pwb_update_machine.log"
+$logFile = Join-Path "C:\tmp" "pwb_update_machine.log"
 
 # 定義日誌函式 (方便統一格式並加入時間)
 function Write-Log {
