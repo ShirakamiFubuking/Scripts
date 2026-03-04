@@ -1,159 +1,180 @@
-﻿
-# $OutputEncoding = [System.Text.Encoding]::UTF8
-# [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-# [Console]::InputEncoding = [System.Text.Encoding]::UTF8
-# 每小時執行
-# 基本檢查
-# TODO
-
-# ==================== 參數:log檔案 ====================
-
-$logFile = Join-Path $env:TEMP "pwb_update_machine.log"
-
-# ==================== 參數:Hicos更新 ====================
-
-$targetVersion = "1.3.4.103349"
-$setupFileUrl = "https://api-hisecurecdn.cdn.hinet.net/MOICA/HiCOS_Client.zip"
-
-# ==================== 參數:hosts檔案 ====================
-
-$hostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
-$sourceUrl = "https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/hosts"
-
-# ==================== 參數:登錄檔更新 ====================
-
-$regUrl = "https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/reg/local_machine.reg"
-
-# ==================== 程式碼 ====================
-# 定義日誌函式 (方便統一格式並加入時間)
+﻿# -------------------- Configuration --------------------
+$Config = @{
+    LogFile         = Join-Path $env:TEMP "pwb_update_machine.log"
+    Hicos = @{
+        TargetVersion = "1.3.4.103349"
+        DownloadUrl   = "https://api-hisecurecdn.cdn.hinet.net/MOICA/HiCOS_Client.zip"
+        ServiceUrl    = "http://127.0.0.1:61161"
+    }
+    SevenZip = @{
+        TargetVersion = "25.01"
+        Architecture  = "x64"  # "x64" or "x86"
+        # 7-Zip 官網下載網址會隨版本變動，腳本會動態產生
+    }
+    Hosts = @{
+        Path          = "$env:SystemRoot\System32\drivers\etc\hosts"
+        SourceUrl     = "https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/hosts"
+    }
+    BrowserPolicies = @{
+        Chrome = "HKLM:\SOFTWARE\Policies\Google\Chrome\PopupsAllowedForUrls"
+        Edge   = "HKLM:\SOFTWARE\Policies\Microsoft\Edge\PopupsAllowedForUrls"
+        Urls   = @{
+            "1" = "https://ecpa.dgpa.gov.tw"
+            "2" = "https://dm.kcg.gov.tw:443"
+            "3" = "http://localhost:61161"
+        }
+    }
+}
+# -------------------- Helper Functions --------------------
 function Write-Log {
     param([string]$Message)
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    "[$timestamp] $Message" | Out-File -FilePath $logFile -Append -Encoding utf8
+    $logEntry = "[$timestamp] $Message"
+    Write-Host $logEntry
+    $logEntry | Out-File -FilePath $Config.LogFile -Append -Encoding utf8
 }
 
-############# Hicos更新
-# 1. 請求本地服務
-try {
-    $response = Invoke-WebRequest -Uri "http://127.0.0.1:61161" -ErrorAction Stop
-    
-    # 2. 使用正規表示法過濾出版本號
-    if ($response.Content -match 'version:(?<version>[\d\.]+)') {
-        # 將擷取的字串轉換為 [version] 物件
-        $currentVersion = [version]$Matches['version']
-        $targetVersionObj = [version]$targetVersion
-        
-        Write-Log "Current version detected: $currentVersion"
+# -------------------- Pre-Flight Checks --------------------
+$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Log "Access Denied: Please run this script as Administrator."
+    exit
+}
 
-        # 使用 [version] 物件進行「小於 (-lt)」判斷
+# ==================== HiCOS Update ====================
+Write-Log "[HiCOS] Checking version..."
+try {
+    $response = Invoke-WebRequest -Uri $Config.Hicos.ServiceUrl -TimeoutSec 5 -ErrorAction Stop
+    
+    if ($response.Content -match 'version:(?<version>[\d\.]+)') {
+        $currentVersion = [version]$Matches['version']
+        $targetVersionObj = [version]$Config.Hicos.TargetVersion
+        
+        Write-Log "[HiCOS] Current: $currentVersion | Target: $targetVersionObj"
+
         if ($currentVersion -lt $targetVersionObj) {
-            Write-Log "Current version ($currentVersion) is older than target ($targetVersionObj). Starting update..."
+            Write-Log "[HiCOS] Newer version available. Starting update sequence..."
             
-            # --- 執行更新程式 ---
-            $tempDir = $env:TEMP
-            $zipPath = Join-Path $tempDir "hicos.zip"
+            $zipPath = Join-Path $env:TEMP "hicos.zip"
+            $extractDir = Join-Path $env:TEMP "hicos_extracted"
+
+            Write-Log "[HiCOS] Downloading package..."
+            Invoke-WebRequest -Uri $Config.Hicos.DownloadUrl -OutFile $zipPath -ErrorAction Stop
             
-            Write-Log "Downloading HiCOS update..."
-            Invoke-WebRequest -Uri $setupFileUrl -OutFile $zipPath
+            Write-Log "[HiCOS] Extracting files..."
+            Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
             
-            Write-Log "Extracting files..."
-            Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
-            
-            Write-Log "Installing HiCOS (Silent Mode)..."
-            $exePath = Join-Path $tempDir "HiCOS_Client.exe"
+            $exePath = Join-Path $extractDir "HiCOS_Client.exe"
             if (Test-Path $exePath) {
-                Start-Process -FilePath $exePath -ArgumentList "/install", "/quiet", "/norestart" -Wait
-                Write-Log "Installation process finished."
+                Write-Log "[HiCOS] Executing silent installation..."
+                $proc = Start-Process -FilePath $exePath -ArgumentList "/install", "/quiet", "/norestart" -Wait -PassThru
+                Write-Log "[HiCOS] Installation finished (ExitCode: $($proc.ExitCode))."
             } else {
-                Write-Log "Error: HiCOS_Client.exe not found after extraction."
+                Write-Log "[HiCOS] Error: HiCOS_Client.exe not found in package."
             }
-            
-            # 清理暫存檔
-            Remove-Item -Path $zipPath -ErrorAction SilentlyContinue
-            Remove-Item -Path $exePath -ErrorAction SilentlyContinue
-            Write-Log "Update sequence completed."
-        }elseif ($currentVersion -eq $targetVersionObj) {
-            Write-Log "Already at target version: $targetVersion. No action needed."
-        }else {
-            Write-Log "Current version ($currentVersion) is newer than target ($targetVersionObj). Skipping."
+
+            # Cleanup
+            Remove-Item $zipPath -ErrorAction SilentlyContinue
+            Remove-Item $extractDir -Recurse -Force -ErrorAction SilentlyContinue
+        } else {
+            Write-Log "[HiCOS] System is up to date or version is newer. Skipping."
         }
     }
 } catch {
-    Write-Log "Warning: Unable to connect to HiCOS service at http://127.0.0.1:61161. Ensure the service is running."
+    Write-Log "[HiCOS] Warning: Service unreachable at $($Config.Hicos.ServiceUrl). Check if HiCOS is installed."
 }
 
-############# hosts更新
-# 3. 檢查權限
-$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    $errorMsg = "權限不足：請以系統管理員身分執行此腳本。"
-    Write-Error $errorMsg
-    # 如果日誌路徑可寫，記錄錯誤
-    if (Test-Path (Split-Path $logFile)) { "[(Get-Date)] $errorMsg" | Out-File $logFile -Append }
-    break
-}
-
-Write-Log "開始更新流程..."
-
+# ==================== 7-Zip Update ====================
+Write-Log "[7-Zip] Checking installation..."
 try {
-    # 4. 下載最新 hosts
-    Write-Log "正在從 GitHub 獲取內容: $sourceUrl"
-    $newHostsContent = Invoke-RestMethod -Uri $sourceUrl -UseBasicParsing
+    $regPaths = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+    )
+    
+    # find installed 7-Zip infomation
+    $installedApp = Get-ItemProperty $regPaths -ErrorAction SilentlyContinue | 
+                    Where-Object { $_.DisplayName -like "*7-Zip*" } | Select-Object -First 1
 
-    if ($null -eq $newHostsContent -or $newHostsContent.Length -lt 10) {
-        throw "下載內容為空或長度異常，取消寫入。"
-    }
+    $current7zVer = if ($installedApp) { [version]($installedApp.DisplayVersion -replace '[^0-9.]', '') } else { [version]"0.0.0.0" }
+    $target7zVerObj = [version]$Config.SevenZip.TargetVersion
 
-    # 5. 直接覆寫 hosts 檔案 (不進行備份)
-    # 使用 .NET 方法確保 UTF-8 無 BOM 格式，避免系統解析問題
-    $Utf8NoBomEncoding = New-Object System.Text.UTF8Encoding $false
-    [System.IO.File]::WriteAllLines($hostsPath, $newHostsContent, $Utf8NoBomEncoding)
-    Write-Log "hosts 檔案已成功更新。"
+    Write-Log "[7-Zip] Current: $current7zVer | Target: $target7zVerObj"
 
-    # 6. 重新整理 DNS 快取
-    ipconfig /flushdns | Out-Null
-    Write-Log "DNS 快取已清理，設定立即生效。"
+    if ($current7zVer -lt $target7zVerObj) {
+        Write-Log "[7-Zip] Newer version available. Preparing download..."
+        
+        # 24.01 -> 7z2401-x64.exe
+        $verClean = $Config.SevenZip.TargetVersion.Replace(".", "")
+        $fileName = "7z$verClean-$($Config.SevenZip.Architecture).exe"
+        $downloadUrl = "https://www.7-zip.org/a/$fileName"
+        $exePath = Join-Path $env:TEMP $fileName
 
-} catch {
-    Write-Log "錯誤發生：$($_.Exception.Message)"
-}
+        Write-Log "[7-Zip] Downloading from $downloadUrl"
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $exePath -ErrorAction Stop
 
-Write-Log "更新流程結束。"
+        Write-Log "[7-Zip] Executing silent installation..."
+        $proc = Start-Process -FilePath $exePath -ArgumentList "/S" -Wait -PassThru
+        
+        if ($proc.ExitCode -eq 0) {
+            Write-Log "[7-Zip] Installation successful."
+        } else {
+            Write-Log "[7-Zip] Installation failed with ExitCode: $($proc.ExitCode)"
+        }
 
-############# 登錄檔更新
-$tempRegPath = "$env:TEMP\setting.reg"
-try {
-    # 3. 下載 .reg 檔案到暫存資料夾
-    Write-Log "正在從 GitHub 下載登錄檔..."
-    Invoke-WebRequest -Uri $regUrl -OutFile $tempRegPath -UseBasicParsing
-    Write-Log "檔案已暫存至: $tempRegPath"
-
-    # 4. 使用 reg import 進行匯入
-    # /s 參數代表「安靜模式」，不會跳出確認視窗
-    Write-Log "執行匯入作業..."
-    $process = Start-Process -FilePath "reg.exe" -ArgumentList "import `"$tempRegPath`"" -Wait -PassThru -WindowStyle Hidden
-
-    if ($process.ExitCode -eq 0) {
-        Write-Log "登錄表設定已成功匯入。"
+        # Cleanup
+        Remove-Item $exePath -ErrorAction SilentlyContinue
     } else {
-        throw "reg.exe 回傳錯誤代碼: $($process.ExitCode)"
+        Write-Log "[7-Zip] System is up to date."
     }
-
-    # 5. 清理暫存檔
-    if (Test-Path $tempRegPath) {
-        Remove-Item $tempRegPath -Force
-        Write-Log "暫存檔已刪除。"
-    }
-
 } catch {
-    Write-Log "匯入失敗：$($_.Exception.Message)"
+    Write-Log "[7-Zip] Error during update: $($_.Exception.Message)"
+}
+
+# ==================== Hosts Update ====================
+Write-Log "[Hosts] Updating hosts file..."
+try {
+    Write-Log "[Hosts] Fetching latest content from source..."
+    $newHostsContent = Invoke-RestMethod -Uri $Config.Hosts.SourceUrl -UseBasicParsing
+
+    if ($null -ne $newHostsContent -and $newHostsContent.Length -ge 10) {
+        $Utf8NoBomEncoding = New-Object System.Text.UTF8Encoding $false
+        [System.IO.File]::WriteAllLines($Config.Hosts.Path, $newHostsContent, $Utf8NoBomEncoding)
+        Write-Log "[Hosts] Update successful."
+
+        ipconfig /flushdns | Out-Null
+        Write-Log "[Hosts] DNS cache flushed."
+    } else {
+        Write-Log "[Hosts] Error: Downloaded content is invalid or empty."
+    }
+} catch {
+    Write-Log "[Hosts] Failed to update: $($_.Exception.Message)"
+}
+
+# ==================== Registry Update ====================
+Write-Log "[Registry] Updating system registry..."
+try {
+    $PolicyPaths = @($Config.BrowserPolicies.Chrome, $Config.BrowserPolicies.Edge)
+
+    foreach ($keyPath in $PolicyPaths) {
+        if (-not (Test-Path $keyPath)) {
+            New-Item -Path $keyPath -Force | Out-Null
+            Write-Log "[Registry] Created key: $keyPath"
+        }
+        $Config.BrowserPolicies.Urls.GetEnumerator() | ForEach-Object {
+            Set-ItemProperty -Path $keyPath -Name $_.Key -Value $_.Value -Type String
+        }
+    }
+    Write-Log "[Registry] Browser policies applied successfully."
+} catch {
+    Write-Log "[Registry] Failed to apply settings: $($_.Exception.Message)"
 }
 
 # SIG # Begin signature block
 # MIIFRgYJKoZIhvcNAQcCoIIFNzCCBTMCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU/6L9Ak/S+lX0fE4J6CMlBo+4
-# tiygggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUrb0PbSTccaylJ8cnjyTsPepA
+# NsWgggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
 # AQsFADANMQswCQYDVQQDDAJHZTAeFw0yNjAyMTAwMjA2NTRaFw0zMTAyMTAwMjE2
 # NTNaMA0xCzAJBgNVBAMMAkdlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
 # AQEAo4PtDhHC0bm/MGf+ud5v7E0gD80T4anDq36e98xeUv+TzZ7VUtP5uATp5APe
@@ -172,11 +193,11 @@ try {
 # ITANMQswCQYDVQQDDAJHZQIQf/nbIZcJG6BDLhvkFK6gNzAJBgUrDgMCGgUAoHgw
 # GAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGC
 # NwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkqhkiG9w0BCQQx
-# FgQUGEKo5jAKkgJ3SB8RecBPpMlYOjswDQYJKoZIhvcNAQEBBQAEggEAP9K7Fo1d
-# b4/S2lnUFkxaHifV7KBFlsdzAaHaL7nAj/vedERHDZ4vQmioJcddlVKOpJi3iwnP
-# LpVGLWo+qcg6+hnQu8Hx6Xf8spJvrup297dDRqTwx0tcNXMrGdmtGhOTBuW711gW
-# TpwtG0Ge/kNgawAuI0aXYa+HGbGzFTtResiBRP1xkjVcECD46e0MbgS4JgIN2bcv
-# gaL7c+Ex31HEfH02Kbbr9u8flsBWzh8Sx6UKYXpo58AEKpaP9Diqbd1x84lGZrhM
-# EjeHJY06cN6JLVu+2EWy6ob9YxztBcRU4g0A4TCCWzfJiY31KIKqJXRdyztRiIJ2
-# NXwCyO6+aDCFQQ==
+# FgQUwq6XyRCGqRT8Nm5077DsI87APa0wDQYJKoZIhvcNAQEBBQAEggEAM8N/Jijg
+# SnMhhJglKw07Lyuj0Q/fW1FW7kvnSFYKhIsan+84IJK3HHGwEdIKAylzYA20UT3v
+# 7CCSwpONm3jGadYxip3hh1k2Quebe437uKGBNoFQh8l9FDKRkIgf7pIubAccKc3R
+# Z8R4pq8bSVM3vzRnlmizTcuMMjm1JpQ9SG1VhH9iccjOebyFm7a3bcvHpjzS9Pn6
+# UQVroB9LwY2HGET6tLDk7LRLlkH85U+y26nQfvwjriucQ5gclhSj6xK5PJwJU+Ze
+# HeTsQP+mXext4SyMB28U4MxBmqbwKeYMmQqxd6VumQX7JYkAikyQq5CkwzUS9bkm
+# 6p/THVUuroYIXA==
 # SIG # End signature block
