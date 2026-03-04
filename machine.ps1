@@ -6,10 +6,24 @@
 # 基本檢查
 # TODO
 
-# 設定目標與路徑
-$targetVersion = "1.3.4.103349"
-$logFile = Join-Path "C:\tmp" "pwb_update_machine.log"
+# ==================== 參數:log檔案 ====================
 
+$logFile = Join-Path $env:TEMP "pwb_update_machine.log"
+
+# ==================== 參數:Hicos更新 ====================
+
+$targetVersion = "1.3.4.103349"
+
+# ==================== 參數:hosts檔案 ====================
+
+$hostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
+$sourceUrl = "https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/hosts"
+
+# ==================== 參數:登錄檔更新 ====================
+
+$regUrl = "https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/reg/local_machine.reg"
+
+# ==================== 程式碼 ====================
 # 定義日誌函式 (方便統一格式並加入時間)
 function Write-Log {
     param([string]$Message)
@@ -17,6 +31,7 @@ function Write-Log {
     "[$timestamp] $Message" | Out-File -FilePath $logFile -Append -Encoding utf8
 }
 
+############# Hicos更新
 # 1. 請求本地服務
 try {
     $response = Invoke-WebRequest -Uri "http://127.0.0.1:61161" -ErrorAction Stop
@@ -60,11 +75,78 @@ try {
     Write-Log "Warning: Unable to connect to HiCOS service at http://127.0.0.1:61161. Ensure the service is running."
 }
 
+############# hosts更新
+# 3. 檢查權限
+$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    $errorMsg = "權限不足：請以系統管理員身分執行此腳本。"
+    Write-Error $errorMsg
+    # 如果日誌路徑可寫，記錄錯誤
+    if (Test-Path (Split-Path $logFile)) { "[(Get-Date)] $errorMsg" | Out-File $logFile -Append }
+    break
+}
+
+Write-Log "開始更新流程..."
+
+try {
+    # 4. 下載最新 hosts
+    Write-Log "正在從 GitHub 獲取內容: $sourceUrl"
+    $newHostsContent = Invoke-RestMethod -Uri $sourceUrl -UseBasicParsing
+
+    if ($null -eq $newHostsContent -or $newHostsContent.Length -lt 10) {
+        throw "下載內容為空或長度異常，取消寫入。"
+    }
+
+    # 5. 直接覆寫 hosts 檔案 (不進行備份)
+    # 使用 .NET 方法確保 UTF-8 無 BOM 格式，避免系統解析問題
+    $Utf8NoBomEncoding = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllLines($hostsPath, $newHostsContent, $Utf8NoBomEncoding)
+    Write-Log "hosts 檔案已成功更新。"
+
+    # 6. 重新整理 DNS 快取
+    ipconfig /flushdns | Out-Null
+    Write-Log "DNS 快取已清理，設定立即生效。"
+
+} catch {
+    Write-Log "錯誤發生：$($_.Exception.Message)"
+}
+
+Write-Log "更新流程結束。"
+
+############# 登錄檔更新
+$tempRegPath = "$env:TEMP\setting.reg"
+try {
+    # 3. 下載 .reg 檔案到暫存資料夾
+    Write-Log "正在從 GitHub 下載登錄檔..."
+    Invoke-WebRequest -Uri $regUrl -OutFile $tempRegPath -UseBasicParsing
+    Write-Log "檔案已暫存至: $tempRegPath"
+
+    # 4. 使用 reg import 進行匯入
+    # /s 參數代表「安靜模式」，不會跳出確認視窗
+    Write-Log "執行匯入作業..."
+    $process = Start-Process -FilePath "reg.exe" -ArgumentList "import `"$tempRegPath`"" -Wait -PassThru -WindowStyle Hidden
+
+    if ($process.ExitCode -eq 0) {
+        Write-Log "登錄表設定已成功匯入。"
+    } else {
+        throw "reg.exe 回傳錯誤代碼: $($process.ExitCode)"
+    }
+
+    # 5. 清理暫存檔
+    if (Test-Path $tempRegPath) {
+        Remove-Item $tempRegPath -Force
+        Write-Log "暫存檔已刪除。"
+    }
+
+} catch {
+    Write-Log "匯入失敗：$($_.Exception.Message)"
+}
+
 # SIG # Begin signature block
 # MIIFRgYJKoZIhvcNAQcCoIIFNzCCBTMCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU1ivEifcEjyNjTfmzeH2XOwu0
-# RyCgggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU23xM78NZP8t/GOBQMCqWblAJ
+# 4gugggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
 # AQsFADANMQswCQYDVQQDDAJHZTAeFw0yNjAyMTAwMjA2NTRaFw0zMTAyMTAwMjE2
 # NTNaMA0xCzAJBgNVBAMMAkdlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
 # AQEAo4PtDhHC0bm/MGf+ud5v7E0gD80T4anDq36e98xeUv+TzZ7VUtP5uATp5APe
@@ -83,11 +165,11 @@ try {
 # ITANMQswCQYDVQQDDAJHZQIQf/nbIZcJG6BDLhvkFK6gNzAJBgUrDgMCGgUAoHgw
 # GAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGC
 # NwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkqhkiG9w0BCQQx
-# FgQU2sjveXhTFb1i3SkOSpCChx7zNDswDQYJKoZIhvcNAQEBBQAEggEATkhROEyh
-# zJU29N15wc3B8+cjhMVFssM1DmVGuv3GFASUDYIBdReZRtXni1Uu+gCYYOok9BB6
-# 3oVZhaWYEDrZ2fJDdKXqj+VrKRqMJ1Uu25hu/KbYYSV9ypc1Gm22zkfb8WKWBOSG
-# HqiujV2BpzxumChWON6PODUQ7TYz9fhBUWCqkn/+C9EH9iguA5aASDN/JWDRYgs+
-# bDv6sseIoxlqC6siQ2OmU4izUN8PATwWZ43YHVzhFtE2wuQ+gcPCQBLqMCGNVutd
-# B2nkLqOZiFV97a6Ov1FyHueaU98Kp0B4vLvUpTWSmZ+S3efVGrEKNg5gvBfTzgww
-# a0jODZtbhRgIKQ==
+# FgQULyegDrHtDBDbaxbNSRl2TkjkhkEwDQYJKoZIhvcNAQEBBQAEggEAUr/3ZBof
+# F+4MR/WDXrVgAcnuhp70gf3v6uqSqGp93HbRlX/vhIey2skFqLV09/3MxPr8ce5p
+# lFIli5OqnNx+TvN6dP5/dPz5ed43tpJb3Avhg7pTSZMoN3mYyPzZEH12bNg28ZAN
+# PsNVNSsVvKg9m0L6dQhMbCnD64y1dLHlrVCFRxwD5H/Ikw7ND59S9BF6bYtVXzft
+# XvJyx/M95SMKkTP5SbX/f3gCle+oOVHi7d3dHXUoeGlNF9mNysABe6nPTmX21TTD
+# J4+5aMsz73Xr2hzqf3CjXv6HOIjLIPwV9du/dpa0MTqV41mZ8xUusKuc3AGpTc/T
+# YKgwKnePAQwhQg==
 # SIG # End signature block
