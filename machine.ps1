@@ -39,11 +39,15 @@ try {
     
     # 2. 使用正規表示法過濾出版本號
     if ($response.Content -match 'version:(?<version>[\d\.]+)') {
-        $currentVersion = $Matches['version']
-        Write-Log "Current version detected: $currentVersion"
+        # 將擷取的字串轉換為 [version] 物件
+        $currentVersion = [version]$Matches['version']
+        $targetVersionObj = [version]$targetVersion
         
-        if ($currentVersion -ne $targetVersion) {
-            Write-Log "Not target version ($targetVersion). Starting update..."
+        Write-Log "Current version detected: $currentVersion"
+
+        # 使用 [version] 物件進行「小於 (-lt)」判斷
+        if ($currentVersion -lt $targetVersionObj) {
+            Write-Log "Current version ($currentVersion) is older than target ($targetVersionObj). Starting update..."
             
             # --- 執行更新程式 ---
             $tempDir = $env:TEMP
@@ -68,8 +72,10 @@ try {
             Remove-Item -Path $zipPath -ErrorAction SilentlyContinue
             Remove-Item -Path $exePath -ErrorAction SilentlyContinue
             Write-Log "Update sequence completed."
-        } else {
+        }elseif ($currentVersion -eq $targetVersionObj) {
             Write-Log "Already at target version: $targetVersion. No action needed."
+        }else {
+            Write-Log "Current version ($currentVersion) is newer than target ($targetVersionObj). Skipping."
         }
     }
 } catch {
@@ -146,8 +152,8 @@ try {
 # SIG # Begin signature block
 # MIIFRgYJKoZIhvcNAQcCoIIFNzCCBTMCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUpLZIY6EvIj86wdJXCuaSbMqF
-# HpqgggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU/6L9Ak/S+lX0fE4J6CMlBo+4
+# tiygggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
 # AQsFADANMQswCQYDVQQDDAJHZTAeFw0yNjAyMTAwMjA2NTRaFw0zMTAyMTAwMjE2
 # NTNaMA0xCzAJBgNVBAMMAkdlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
 # AQEAo4PtDhHC0bm/MGf+ud5v7E0gD80T4anDq36e98xeUv+TzZ7VUtP5uATp5APe
@@ -166,11 +172,11 @@ try {
 # ITANMQswCQYDVQQDDAJHZQIQf/nbIZcJG6BDLhvkFK6gNzAJBgUrDgMCGgUAoHgw
 # GAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGC
 # NwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkqhkiG9w0BCQQx
-# FgQUJj6XGP5WT01vJ7HaS6BlAe89I/8wDQYJKoZIhvcNAQEBBQAEggEALH27i2s0
-# +4B9JpNSIs5wASTx95B22lQcy5udS6dAHEnqvhDwtFqyv+La67M5eoxwjC8tFzL4
-# Elnt+spn5/Ttht/vp6ZIYKOypS6iavqzrT2kBoJgWnyh8G5DjYT9GbHM5Yn6tN/a
-# E3qmXO5oqf9Mmmxy/oefWe78t4lTsYl0mbO9ZQXWnUWbGqNFM/Zb9EooPJANt2kx
-# z1Hw8f7E7c6sgvj/qSWPtBBOpBKW4TmsPzVaH6WzgZQm1DkrgOQ2nS4xerxami8e
-# MqcWTzsBBkh9gAMtnQq3NtlHa09OEEIYUmMBpQncLD9neT9wbWArRW+9d8yiVeEP
-# MIadYonex5E0nw==
+# FgQUGEKo5jAKkgJ3SB8RecBPpMlYOjswDQYJKoZIhvcNAQEBBQAEggEAP9K7Fo1d
+# b4/S2lnUFkxaHifV7KBFlsdzAaHaL7nAj/vedERHDZ4vQmioJcddlVKOpJi3iwnP
+# LpVGLWo+qcg6+hnQu8Hx6Xf8spJvrup297dDRqTwx0tcNXMrGdmtGhOTBuW711gW
+# TpwtG0Ge/kNgawAuI0aXYa+HGbGzFTtResiBRP1xkjVcECD46e0MbgS4JgIN2bcv
+# gaL7c+Ex31HEfH02Kbbr9u8flsBWzh8Sx6UKYXpo58AEKpaP9Diqbd1x84lGZrhM
+# EjeHJY06cN6JLVu+2EWy6ob9YxztBcRU4g0A4TCCWzfJiY31KIKqJXRdyztRiIJ2
+# NXwCyO6+aDCFQQ==
 # SIG # End signature block
