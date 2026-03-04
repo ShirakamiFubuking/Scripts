@@ -13,6 +13,7 @@ $logFile = Join-Path $env:TEMP "pwb_update_machine.log"
 # ==================== 參數:Hicos更新 ====================
 
 $targetVersion = "1.3.4.103349"
+$setupFileUrl = "https://api-hisecurecdn.cdn.hinet.net/MOICA/HiCOS_Client.zip"
 
 # ==================== 參數:hosts檔案 ====================
 
@@ -49,7 +50,7 @@ try {
             $zipPath = Join-Path $tempDir "hicos.zip"
             
             Write-Log "Downloading HiCOS update..."
-            Invoke-WebRequest -Uri "https://api-hisecurecdn.cdn.hinet.net/HiCOS_Client.zip" -OutFile $zipPath
+            Invoke-WebRequest -Uri $setupFileUrl -OutFile $zipPath
             
             Write-Log "Extracting files..."
             Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
@@ -145,8 +146,8 @@ try {
 # SIG # Begin signature block
 # MIIFRgYJKoZIhvcNAQcCoIIFNzCCBTMCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU23xM78NZP8t/GOBQMCqWblAJ
-# 4gugggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUpLZIY6EvIj86wdJXCuaSbMqF
+# HpqgggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
 # AQsFADANMQswCQYDVQQDDAJHZTAeFw0yNjAyMTAwMjA2NTRaFw0zMTAyMTAwMjE2
 # NTNaMA0xCzAJBgNVBAMMAkdlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
 # AQEAo4PtDhHC0bm/MGf+ud5v7E0gD80T4anDq36e98xeUv+TzZ7VUtP5uATp5APe
@@ -165,11 +166,11 @@ try {
 # ITANMQswCQYDVQQDDAJHZQIQf/nbIZcJG6BDLhvkFK6gNzAJBgUrDgMCGgUAoHgw
 # GAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGC
 # NwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkqhkiG9w0BCQQx
-# FgQULyegDrHtDBDbaxbNSRl2TkjkhkEwDQYJKoZIhvcNAQEBBQAEggEAUr/3ZBof
-# F+4MR/WDXrVgAcnuhp70gf3v6uqSqGp93HbRlX/vhIey2skFqLV09/3MxPr8ce5p
-# lFIli5OqnNx+TvN6dP5/dPz5ed43tpJb3Avhg7pTSZMoN3mYyPzZEH12bNg28ZAN
-# PsNVNSsVvKg9m0L6dQhMbCnD64y1dLHlrVCFRxwD5H/Ikw7ND59S9BF6bYtVXzft
-# XvJyx/M95SMKkTP5SbX/f3gCle+oOVHi7d3dHXUoeGlNF9mNysABe6nPTmX21TTD
-# J4+5aMsz73Xr2hzqf3CjXv6HOIjLIPwV9du/dpa0MTqV41mZ8xUusKuc3AGpTc/T
-# YKgwKnePAQwhQg==
+# FgQUJj6XGP5WT01vJ7HaS6BlAe89I/8wDQYJKoZIhvcNAQEBBQAEggEALH27i2s0
+# +4B9JpNSIs5wASTx95B22lQcy5udS6dAHEnqvhDwtFqyv+La67M5eoxwjC8tFzL4
+# Elnt+spn5/Ttht/vp6ZIYKOypS6iavqzrT2kBoJgWnyh8G5DjYT9GbHM5Yn6tN/a
+# E3qmXO5oqf9Mmmxy/oefWe78t4lTsYl0mbO9ZQXWnUWbGqNFM/Zb9EooPJANt2kx
+# z1Hw8f7E7c6sgvj/qSWPtBBOpBKW4TmsPzVaH6WzgZQm1DkrgOQ2nS4xerxami8e
+# MqcWTzsBBkh9gAMtnQq3NtlHa09OEEIYUmMBpQncLD9neT9wbWArRW+9d8yiVeEP
+# MIadYonex5E0nw==
 # SIG # End signature block

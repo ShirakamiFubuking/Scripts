@@ -5,5 +5,9 @@ powershell -Command Import-Certificate -FilePath "PSCert.cer" -CertStoreLocation
 del PSCert.cer
 
 :: 設定排程
-schtasks /create /tn "machine_pwb_update" /tr "powershell -Command Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/machine.ps1' | Powershell -Command -" /sc hourly /mo 1 /rl highest /f /np
-schtasks /create /tn "user_pwb_update" /tr "powershell -Command Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/user.ps1' | Powershell -Command -" /sc hourly /mo 1 /f
+schtasks /create /tn "pwb_update_machine" /tr "powershell -Command Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/machine.ps1' | Powershell -Command -" /sc hourly /mo 1 /rl highest /f /np
+schtasks /create /tn "pwb_update_user" /tr "powershell -Command Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/user.ps1' | Powershell -Command -" /sc hourly /mo 1 /rl highest /f
+
+:: 執行
+schtasks /run /tn "pwb_update_machine"
+schtasks /run /tn "pwb_update_user"
