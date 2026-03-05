@@ -15,12 +15,14 @@ function Write-Log {
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     "[$timestamp] $Message" | Out-File -FilePath $logFile -Append -Encoding utf8
 }
-
+$TaskName = "pwb_update_machine"
+$Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+Set-ScheduledTask -TaskName $TaskName -Principal $Principal
 # SIG # Begin signature block
 # MIIFRgYJKoZIhvcNAQcCoIIFNzCCBTMCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUwY7JxwBs9+J93l035UsrNc1g
-# FdygggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUrEGFTZFxwc8K7u94xBp58fT6
+# Ps2gggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
 # AQsFADANMQswCQYDVQQDDAJHZTAeFw0yNjAyMTAwMjA2NTRaFw0zMTAyMTAwMjE2
 # NTNaMA0xCzAJBgNVBAMMAkdlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
 # AQEAo4PtDhHC0bm/MGf+ud5v7E0gD80T4anDq36e98xeUv+TzZ7VUtP5uATp5APe
@@ -39,11 +41,11 @@ function Write-Log {
 # ITANMQswCQYDVQQDDAJHZQIQf/nbIZcJG6BDLhvkFK6gNzAJBgUrDgMCGgUAoHgw
 # GAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGC
 # NwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkqhkiG9w0BCQQx
-# FgQUsMJhORwnSUSFeJAgPcz9i5L57rkwDQYJKoZIhvcNAQEBBQAEggEAlnN136GH
-# /ygRrni77Ip86iv+Ph8pNWhP4C8TenSakXOOvvcYEPQ8ushaX2K4NE0uHwL2LR7J
-# VhJBMFQzBQroR3D6oGiF0Wm/URm+iyLPuZ82HGoyTVc8Y++gCvEqgT5cYx9EIStu
-# rYPDfXUN6Doow6rlHlNnySrcbfTJcO/eL8DCHS6WlMxq6hsnhmIoOteZUzsBswMG
-# CsoVbdMwU4fzyXeW1SMOOGLYYnMQ0FQMuHZGOKomg8w5N23HmYKMhiVTK8K4cNNR
-# EsZglE/gy/5AZIknB/H54IbCuEQlh1d4pN/oN//C31DhJJ/Wkd40KGMvvQ5bL+lW
-# EOGXMkP9e4FMCg==
+# FgQU+W1Z5W6hhyAbBg4/L2Z2BFzEJLkwDQYJKoZIhvcNAQEBBQAEggEAmb7pVaq/
+# D/fpZopgp1DOC+HQ/QqzMvAeVy68yIps39veXZPk2nFOajetNS1VygwdX9T6gkBu
+# NF8X0/xu3Ko++xzQZQKQ6HovEXcw5KLLzsNrfoVVpKyk9aHnW0jFM2GmXNS1wI10
+# q6jaY77kty3qZdAOmQ0VzsGUlM6aQOS5BV2ZIRCUGtdvcsRMjacec0oQj6B3zy50
+# Xb91WeEwtKfAcz2oZHErHXZbRsTrq3dfjGbtmlSwMawzMrvuaOJM576R/vZgKZ2a
+# sIRpPADqH5ZJ3bfaLXpBuP+/t+Vg0F1HzT+j9ZN7HhMpbT7p52Sm90nf9wAEDEus
+# VQarVz8ojICfCA==
 # SIG # End signature block
