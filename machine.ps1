@@ -91,7 +91,7 @@ try {
         
         Write-Log "[HiCOS] Current: $currentVersion | Target: $targetVersionObj"
 
-        if ($currentVersion -lt $targetVersionObj) {
+        if ($currentVersion -ne $targetVersionObj) {
             Write-Log "[HiCOS] Newer version available. Starting update sequence..."
             
             $zipPath = Join-Path $env:TEMP "hicos.zip"
