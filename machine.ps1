@@ -1,5 +1,6 @@
-﻿schtasks /create /tn "pwb_update_machine" /tr "powershell -Command Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/machine.ps1' | Powershell -Command -" /sc hourly /mo 1 /rl highest /ru SYSTEM /f /np
-
+﻿$TaskName = "pwb_update_machine"
+$Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+Set-ScheduledTask -TaskName $TaskName -Principal $Principal
 # -------------------- Configuration --------------------
 $Config = @{
     LogFile         = Join-Path $env:TEMP "pwb_update_machine.log"
@@ -175,8 +176,8 @@ try {
 # SIG # Begin signature block
 # MIIFRgYJKoZIhvcNAQcCoIIFNzCCBTMCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU0EAbEtN7sMI8uB5wP78kiCRL
-# 3D+gggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUPB0TRkhBORNb45wmUbh17hVF
+# W+egggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
 # AQsFADANMQswCQYDVQQDDAJHZTAeFw0yNjAyMTAwMjA2NTRaFw0zMTAyMTAwMjE2
 # NTNaMA0xCzAJBgNVBAMMAkdlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
 # AQEAo4PtDhHC0bm/MGf+ud5v7E0gD80T4anDq36e98xeUv+TzZ7VUtP5uATp5APe
@@ -195,11 +196,11 @@ try {
 # ITANMQswCQYDVQQDDAJHZQIQf/nbIZcJG6BDLhvkFK6gNzAJBgUrDgMCGgUAoHgw
 # GAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGC
 # NwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkqhkiG9w0BCQQx
-# FgQUAOrPqiP/jALv4b2VNO34mvvP8dgwDQYJKoZIhvcNAQEBBQAEggEAEh9oI7OS
-# pGT8XPhMr/b3T0NDG1tk2qE8Dr7gQt6F6wERITwn8N/8fKb2yHUq9O0/EF1Zg3S6
-# EILwmacpE2NmiPMPmSJuMKWkSkvhDYhry7dIJG0UusH2pkIzk5xxZdo2bOa7wp5v
-# vBmYheVOhG/L252XdkWzzjCFh6HH0zKf59hlfrwqJBtUYDqRGLvHxNtEobFqSw2C
-# t+WL60CJmcf1owAmCpB3Ogf3XrdgS90Pqd2dgh+U7RQg2ECypCReOBM0WScw9XPa
-# XI7qKx563ebkKhRPPCBcE2DR4wHbHi1s81zF8tV85AX6zum0trvOt/6bjEBRTGke
-# dELEGmWmDOkdeg==
+# FgQUjbx6FY+mmKOC2Q318gdnuVNrGoowDQYJKoZIhvcNAQEBBQAEggEAhSZspkYU
+# 0+nUVpk3m23uD8FWCfozzZdTxK6N4pZF/fCRtPts6IeRyW36Hnph5tQoVaCrzmFy
+# 9VtPBqjQlNByvRrAWyz5SCRWwJ7wemFqWJhgfLhjglr9scHEbemGMGLQFY0Xs02F
+# oSqJ9E2OMkvxvKex3xTDqVQHr3EXrYxml8OG9hKEE0EnLfbeEIDbQIWq8YghFpGE
+# sfC9uE8Yv1b38LUMAO6EtoRq3mFR1hYQhrD7Mc5c5fvTd7JQzmPoaXRFjU/QFzIh
+# zW+BwEznTIYuPlE2rEWGpHZtpdzd9a7rb89gzTy+67vliWo+dsA5nf+s18cbdDE6
+# 1QzEh5Kz4koRAw==
 # SIG # End signature block
