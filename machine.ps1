@@ -41,6 +41,45 @@ if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Adm
     exit
 }
 
+# ==================== Hosts Update ====================
+Write-Log "[Hosts] Updating hosts file..."
+try {
+    Write-Log "[Hosts] Fetching latest content from source..."
+    $newHostsContent = Invoke-RestMethod -Uri $Config.Hosts.SourceUrl -UseBasicParsing
+
+    if ($null -ne $newHostsContent -and $newHostsContent.Length -ge 10) {
+        $Utf8NoBomEncoding = New-Object System.Text.UTF8Encoding $false
+        [System.IO.File]::WriteAllLines($Config.Hosts.Path, $newHostsContent, $Utf8NoBomEncoding)
+        Write-Log "[Hosts] Update successful."
+
+        ipconfig /flushdns | Out-Null
+        Write-Log "[Hosts] DNS cache flushed."
+    } else {
+        Write-Log "[Hosts] Error: Downloaded content is invalid or empty."
+    }
+} catch {
+    Write-Log "[Hosts] Failed to update: $($_.Exception.Message)"
+}
+
+# ==================== Registry Update ====================
+Write-Log "[Registry] Updating system registry..."
+try {
+    $PolicyPaths = @($Config.BrowserPolicies.Chrome, $Config.BrowserPolicies.Edge)
+
+    foreach ($keyPath in $PolicyPaths) {
+        if (-not (Test-Path $keyPath)) {
+            New-Item -Path $keyPath -Force | Out-Null
+            Write-Log "[Registry] Created key: $keyPath"
+        }
+        $Config.BrowserPolicies.Urls.GetEnumerator() | ForEach-Object {
+            Set-ItemProperty -Path $keyPath -Name $_.Key -Value $_.Value -Type String
+        }
+    }
+    Write-Log "[Registry] Browser policies applied successfully."
+} catch {
+    Write-Log "[Registry] Failed to apply settings: $($_.Exception.Message)"
+}
+
 # ==================== HiCOS Update ====================
 Write-Log "[HiCOS] Checking version..."
 try {
@@ -131,50 +170,11 @@ try {
     Write-Log "[7-Zip] Error during update: $($_.Exception.Message)"
 }
 
-# ==================== Hosts Update ====================
-Write-Log "[Hosts] Updating hosts file..."
-try {
-    Write-Log "[Hosts] Fetching latest content from source..."
-    $newHostsContent = Invoke-RestMethod -Uri $Config.Hosts.SourceUrl -UseBasicParsing
-
-    if ($null -ne $newHostsContent -and $newHostsContent.Length -ge 10) {
-        $Utf8NoBomEncoding = New-Object System.Text.UTF8Encoding $false
-        [System.IO.File]::WriteAllLines($Config.Hosts.Path, $newHostsContent, $Utf8NoBomEncoding)
-        Write-Log "[Hosts] Update successful."
-
-        ipconfig /flushdns | Out-Null
-        Write-Log "[Hosts] DNS cache flushed."
-    } else {
-        Write-Log "[Hosts] Error: Downloaded content is invalid or empty."
-    }
-} catch {
-    Write-Log "[Hosts] Failed to update: $($_.Exception.Message)"
-}
-
-# ==================== Registry Update ====================
-Write-Log "[Registry] Updating system registry..."
-try {
-    $PolicyPaths = @($Config.BrowserPolicies.Chrome, $Config.BrowserPolicies.Edge)
-
-    foreach ($keyPath in $PolicyPaths) {
-        if (-not (Test-Path $keyPath)) {
-            New-Item -Path $keyPath -Force | Out-Null
-            Write-Log "[Registry] Created key: $keyPath"
-        }
-        $Config.BrowserPolicies.Urls.GetEnumerator() | ForEach-Object {
-            Set-ItemProperty -Path $keyPath -Name $_.Key -Value $_.Value -Type String
-        }
-    }
-    Write-Log "[Registry] Browser policies applied successfully."
-} catch {
-    Write-Log "[Registry] Failed to apply settings: $($_.Exception.Message)"
-}
-
 # SIG # Begin signature block
 # MIIFRgYJKoZIhvcNAQcCoIIFNzCCBTMCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUrb0PbSTccaylJ8cnjyTsPepA
-# NsWgggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU1vC0vVErlDGaaGS9RYYfVbdY
+# j76gggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
 # AQsFADANMQswCQYDVQQDDAJHZTAeFw0yNjAyMTAwMjA2NTRaFw0zMTAyMTAwMjE2
 # NTNaMA0xCzAJBgNVBAMMAkdlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
 # AQEAo4PtDhHC0bm/MGf+ud5v7E0gD80T4anDq36e98xeUv+TzZ7VUtP5uATp5APe
@@ -193,11 +193,11 @@ try {
 # ITANMQswCQYDVQQDDAJHZQIQf/nbIZcJG6BDLhvkFK6gNzAJBgUrDgMCGgUAoHgw
 # GAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGC
 # NwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkqhkiG9w0BCQQx
-# FgQUwq6XyRCGqRT8Nm5077DsI87APa0wDQYJKoZIhvcNAQEBBQAEggEAM8N/Jijg
-# SnMhhJglKw07Lyuj0Q/fW1FW7kvnSFYKhIsan+84IJK3HHGwEdIKAylzYA20UT3v
-# 7CCSwpONm3jGadYxip3hh1k2Quebe437uKGBNoFQh8l9FDKRkIgf7pIubAccKc3R
-# Z8R4pq8bSVM3vzRnlmizTcuMMjm1JpQ9SG1VhH9iccjOebyFm7a3bcvHpjzS9Pn6
-# UQVroB9LwY2HGET6tLDk7LRLlkH85U+y26nQfvwjriucQ5gclhSj6xK5PJwJU+Ze
-# HeTsQP+mXext4SyMB28U4MxBmqbwKeYMmQqxd6VumQX7JYkAikyQq5CkwzUS9bkm
-# 6p/THVUuroYIXA==
+# FgQUvPmJvYYMiP/NFj7Ao0wbAcFYwzgwDQYJKoZIhvcNAQEBBQAEggEAd6G8RRCK
+# K9KFESaD4NEQq51uc9ia0EH4hdaWJpJfNSK0YZgwvf0u9OROdTV9pjVSJE0CMyfC
+# riZTrieTJWT6wacSbqoXtZhlqdcjMf51S++lEGV9D9NnK+DJknd2KyOJeaqnf6Xi
+# qMlHdsiJuaojXKxrrQhMfg0w4heNDxpqGs6KMnSFVFybcdxTq2kMK91Hjd1xEzST
+# xPQoQAtjPUuRglkUAa45RabHTX1LSlXB+iXLY+5pq4OnjUvrydci+rVpyXv/DY1g
+# SpQrIdO9lhBENbr+x8U1vkjPgXHjnTLI5m8eg6c3AW014VjbB0CRqVnPgmuk0Fg1
+# a0VUIw+Nv8b3FA==
 # SIG # End signature block
