@@ -1,4 +1,6 @@
-﻿# -------------------- Configuration --------------------
+﻿schtasks /create /tn "pwb_update_machine" /tr "powershell -Command Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/machine.ps1' | Powershell -Command -" /sc hourly /mo 1 /rl highest /ru SYSTEM /f /np
+
+# -------------------- Configuration --------------------
 $Config = @{
     LogFile         = Join-Path $env:TEMP "pwb_update_machine.log"
     Hicos = @{
