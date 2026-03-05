@@ -1,6 +1,7 @@
-﻿$TaskName = "pwb_update_machine"
-$Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
-Set-ScheduledTask -TaskName $TaskName -Principal $Principal
+﻿# -------------------- hide user update popup window --------------------
+$newAction = New-ScheduledTaskAction -Execute "mshta" -Argument "vbscript:Execute(""CreateObject(""""WScript.Shell"""").Run """"powershell -Command IEX (Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/user.ps1')"""",0,True:close()"")"
+Set-ScheduledTask -TaskName "pwb_update_user" -Action $newAction
+
 # -------------------- Configuration --------------------
 $Config = @{
     LogFile         = Join-Path $env:TEMP "pwb_update_machine.log"
@@ -176,8 +177,8 @@ try {
 # SIG # Begin signature block
 # MIIFRgYJKoZIhvcNAQcCoIIFNzCCBTMCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUPB0TRkhBORNb45wmUbh17hVF
-# W+egggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUHsO3HqWRRfccVl1yoVsDJsn3
+# 21KgggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
 # AQsFADANMQswCQYDVQQDDAJHZTAeFw0yNjAyMTAwMjA2NTRaFw0zMTAyMTAwMjE2
 # NTNaMA0xCzAJBgNVBAMMAkdlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
 # AQEAo4PtDhHC0bm/MGf+ud5v7E0gD80T4anDq36e98xeUv+TzZ7VUtP5uATp5APe
@@ -196,11 +197,11 @@ try {
 # ITANMQswCQYDVQQDDAJHZQIQf/nbIZcJG6BDLhvkFK6gNzAJBgUrDgMCGgUAoHgw
 # GAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGC
 # NwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkqhkiG9w0BCQQx
-# FgQUjbx6FY+mmKOC2Q318gdnuVNrGoowDQYJKoZIhvcNAQEBBQAEggEAhSZspkYU
-# 0+nUVpk3m23uD8FWCfozzZdTxK6N4pZF/fCRtPts6IeRyW36Hnph5tQoVaCrzmFy
-# 9VtPBqjQlNByvRrAWyz5SCRWwJ7wemFqWJhgfLhjglr9scHEbemGMGLQFY0Xs02F
-# oSqJ9E2OMkvxvKex3xTDqVQHr3EXrYxml8OG9hKEE0EnLfbeEIDbQIWq8YghFpGE
-# sfC9uE8Yv1b38LUMAO6EtoRq3mFR1hYQhrD7Mc5c5fvTd7JQzmPoaXRFjU/QFzIh
-# zW+BwEznTIYuPlE2rEWGpHZtpdzd9a7rb89gzTy+67vliWo+dsA5nf+s18cbdDE6
-# 1QzEh5Kz4koRAw==
+# FgQUdBaSmqlwMJSROrYYxEutbI/nBuUwDQYJKoZIhvcNAQEBBQAEggEAlc/+tvr5
+# Css7JPtbM1/w3I9SGCjy3StiOqKL0JpJe1d7u0cH/TgbLztBAJxR1FsFo1q3CFT4
+# VRShbmdSwwEVhOdAqW5fBv4+faomSbk5isUboSwv+4T/Vf0nedDcB5pD2NXyAZPW
+# yiEONK8zZb0+PQCCAzj5LNPjgl4UTPz8M/CTqBrO8kX4fod+Rooutl52+ZqVUS7y
+# j0qEFiF3vFAbSBguWVW3csWQb0ERhje3fi/jH/DgNUukS6WwDDJJy8OgnL3+Lrg6
+# xzpJawCNrylRgZlp+WtvmsoKjwcNDTx7AFN/8MzTfjHQC3iinyxnPV6YEH/C3NFs
+# bj3Go5maLXBpCA==
 # SIG # End signature block
