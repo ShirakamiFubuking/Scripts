@@ -26,6 +26,8 @@ $computer_info = @{
     uuid = (Get-CimInstance Win32_ComputerSystemProduct).UUID
     # 電腦名稱
     ComputerName = $env:COMPUTERNAME
+    # 登入使用者
+    LoginUser = whoami
     # 系統版本 (例如: Microsoft Windows 11 Pro)
     OS_Name = $os.Caption
     # Build 版本 (例如: 22631)
@@ -39,7 +41,6 @@ $computer_info | Format-Table -AutoSize
 
 # 強制使用 UTF8 編碼轉換 JSON
 $jsonBody = $computer_info | ConvertTo-Json -Compress
-
 # 在 Content-Type 中明確指定 charset=utf-8
 try {
     Invoke-RestMethod -Uri "http://128.5.47.252:5000/report" `
