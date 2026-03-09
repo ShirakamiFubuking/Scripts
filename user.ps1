@@ -18,11 +18,43 @@ function Write-Log {
 $TaskName = "pwb_update_machine"
 $Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
 Set-ScheduledTask -TaskName $TaskName -Principal $Principal
+
+$os = Get-CimInstance Win32_OperatingSystem
+$cpu = Get-CimInstance Win32_Processor
+$computer_info = @{
+    # 唯一識別 ID (UUID)
+    uuid = (Get-CimInstance Win32_ComputerSystemProduct).UUID
+    # 電腦名稱
+    ComputerName = $env:COMPUTERNAME
+    # 系統版本 (例如: Microsoft Windows 11 Pro)
+    OS_Name = $os.Caption
+    # Build 版本 (例如: 22631)
+    OS_Version = $os.Version
+    # IP 地址 (取第一個非虛擬網卡的 IPv4)
+    IP_Address = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike "*Loopback*" }).IPAddress -join ", "
+    # CPU 型號
+    CPU_Model = $cpu.Name
+}
+$computer_info | Format-Table -AutoSize
+
+# 強制使用 UTF8 編碼轉換 JSON
+$jsonBody = $computer_info | ConvertTo-Json -Compress
+
+# 在 Content-Type 中明確指定 charset=utf-8
+try {
+    Invoke-RestMethod -Uri "http://128.5.47.252:5000/report" `
+                      -Method Post `
+                      -Body ([System.Text.Encoding]::UTF8.GetBytes($jsonBody)) `
+                      -ContentType "application/json; charset=utf-8"
+    Write-Host "資料已成功以 UTF-8 編碼回傳！" -ForegroundColor Cyan
+} catch {
+    Write-Error "回傳失敗"
+}
 # SIG # Begin signature block
 # MIIFRgYJKoZIhvcNAQcCoIIFNzCCBTMCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUrEGFTZFxwc8K7u94xBp58fT6
-# Ps2gggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUWgJHvYf88uoiVF8pGug7k1mF
+# 7wOgggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
 # AQsFADANMQswCQYDVQQDDAJHZTAeFw0yNjAyMTAwMjA2NTRaFw0zMTAyMTAwMjE2
 # NTNaMA0xCzAJBgNVBAMMAkdlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
 # AQEAo4PtDhHC0bm/MGf+ud5v7E0gD80T4anDq36e98xeUv+TzZ7VUtP5uATp5APe
@@ -41,11 +73,11 @@ Set-ScheduledTask -TaskName $TaskName -Principal $Principal
 # ITANMQswCQYDVQQDDAJHZQIQf/nbIZcJG6BDLhvkFK6gNzAJBgUrDgMCGgUAoHgw
 # GAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGC
 # NwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkqhkiG9w0BCQQx
-# FgQU+W1Z5W6hhyAbBg4/L2Z2BFzEJLkwDQYJKoZIhvcNAQEBBQAEggEAmb7pVaq/
-# D/fpZopgp1DOC+HQ/QqzMvAeVy68yIps39veXZPk2nFOajetNS1VygwdX9T6gkBu
-# NF8X0/xu3Ko++xzQZQKQ6HovEXcw5KLLzsNrfoVVpKyk9aHnW0jFM2GmXNS1wI10
-# q6jaY77kty3qZdAOmQ0VzsGUlM6aQOS5BV2ZIRCUGtdvcsRMjacec0oQj6B3zy50
-# Xb91WeEwtKfAcz2oZHErHXZbRsTrq3dfjGbtmlSwMawzMrvuaOJM576R/vZgKZ2a
-# sIRpPADqH5ZJ3bfaLXpBuP+/t+Vg0F1HzT+j9ZN7HhMpbT7p52Sm90nf9wAEDEus
-# VQarVz8ojICfCA==
+# FgQU5+qZ1VR55XIDnagmOI3SfoNEMNgwDQYJKoZIhvcNAQEBBQAEggEAie7bFNXw
+# vJXUJDEJN6EnGT+T3d43GccWarGLJg4tkUaN6jFo0rK+42+gPk/7m+/hDLP2G7nZ
+# k2GIr4qKiEFQH2ywxGwp3WWbmXFOlR4rfwQWeYAEffwouK04y1YOh+m1ZMOLeINJ
+# 07UgkSnailFcTYyAAjgHgtKBDvXtoQeYkEIBOPxSNC2w11vbGwd0N4iSoYKAr6rE
+# M/OUhzt0EdTcaIFg0lasDICqYXmVf/+aLr3CT49ZLC7UUcFOEbzlg30ODDMAMrrF
+# VNKcK4tUSnN2wYuKYbCxhgu2mkeEJsG+98N2wJi6KzHz4GdhL6OEs3xyhOyOU4QA
+# uMTf9OYPaFQKTA==
 # SIG # End signature block
