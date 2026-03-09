@@ -42,14 +42,15 @@ $computer_info | Format-Table -AutoSize
 # 強制使用 UTF8 編碼轉換 JSON
 $jsonBody = $computer_info | ConvertTo-Json -Compress
 # 在 Content-Type 中明確指定 charset=utf-8
+Write-Log $jsonBody
 try {
     Invoke-RestMethod -Uri "http://128.5.47.252:5000/report" `
                       -Method Post `
                       -Body ([System.Text.Encoding]::UTF8.GetBytes($jsonBody)) `
                       -ContentType "application/json; charset=utf-8"
-    Write-Host "資料已成功以 UTF-8 編碼回傳！" -ForegroundColor Cyan
+    Write-Log "資料已成功以 UTF-8 編碼回傳！" -ForegroundColor Cyan
 } catch {
-    Write-Error "回傳失敗"
+    Write-Log "回傳失敗"
 }
 # SIG # Begin signature block
 # MIIFRgYJKoZIhvcNAQcCoIIFNzCCBTMCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
