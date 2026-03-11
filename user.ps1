@@ -24,16 +24,32 @@ $cpu = Get-CimInstance Win32_Processor
 $computer_info = @{
     # 唯一識別 ID (UUID)
     uuid = (Get-CimInstance Win32_ComputerSystemProduct).UUID
+    
     # 電腦名稱
     ComputerName = $env:COMPUTERNAME
+    
     # 登入使用者
     LoginUser = whoami
+    
     # 系統版本 (例如: Microsoft Windows 11 Pro)
     OS_Name = $os.Caption
+    
     # Build 版本 (例如: 22631)
     OS_Version = $os.Version
-    # IP 地址 (取第一個非虛擬網卡的 IPv4)
-    IP_Address = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike "*Loopback*" }).IPAddress -join ", "
+    
+    # 網卡資訊：獲取特定網段 (128.5.47.*) 的 IP 與 MAC
+    # 如果要獲取「所有」非虛擬網卡，可將 Where 條件改為 { $_.InterfaceAlias -notlike "*Loopback*" }
+    Network_Interfaces = @(
+        Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike "127.0.0.1" } | ForEach-Object {
+            $adapter = Get-NetAdapter -InterfaceIndex $_.InterfaceIndex
+            [PSCustomObject]@{
+                IPAddress  = $_.IPAddress
+                MACAddress = $adapter.MacAddress
+                Interface  = $adapter.InterfaceAlias
+            }
+        }
+    )
+    
     # CPU 型號
     CPU_Model = $cpu.Name
 }
@@ -55,8 +71,8 @@ try {
 # SIG # Begin signature block
 # MIIFRgYJKoZIhvcNAQcCoIIFNzCCBTMCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUWgJHvYf88uoiVF8pGug7k1mF
-# 7wOgggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUeu4BxtvCfbnQB6k3SBNhZ398
+# bsKgggLuMIIC6jCCAdKgAwIBAgIQf/nbIZcJG6BDLhvkFK6gNzANBgkqhkiG9w0B
 # AQsFADANMQswCQYDVQQDDAJHZTAeFw0yNjAyMTAwMjA2NTRaFw0zMTAyMTAwMjE2
 # NTNaMA0xCzAJBgNVBAMMAkdlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
 # AQEAo4PtDhHC0bm/MGf+ud5v7E0gD80T4anDq36e98xeUv+TzZ7VUtP5uATp5APe
@@ -75,11 +91,11 @@ try {
 # ITANMQswCQYDVQQDDAJHZQIQf/nbIZcJG6BDLhvkFK6gNzAJBgUrDgMCGgUAoHgw
 # GAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGC
 # NwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkqhkiG9w0BCQQx
-# FgQU5+qZ1VR55XIDnagmOI3SfoNEMNgwDQYJKoZIhvcNAQEBBQAEggEAie7bFNXw
-# vJXUJDEJN6EnGT+T3d43GccWarGLJg4tkUaN6jFo0rK+42+gPk/7m+/hDLP2G7nZ
-# k2GIr4qKiEFQH2ywxGwp3WWbmXFOlR4rfwQWeYAEffwouK04y1YOh+m1ZMOLeINJ
-# 07UgkSnailFcTYyAAjgHgtKBDvXtoQeYkEIBOPxSNC2w11vbGwd0N4iSoYKAr6rE
-# M/OUhzt0EdTcaIFg0lasDICqYXmVf/+aLr3CT49ZLC7UUcFOEbzlg30ODDMAMrrF
-# VNKcK4tUSnN2wYuKYbCxhgu2mkeEJsG+98N2wJi6KzHz4GdhL6OEs3xyhOyOU4QA
-# uMTf9OYPaFQKTA==
+# FgQUEql8JTHWJrbOgrMFLpEKwpDnhE8wDQYJKoZIhvcNAQEBBQAEggEAdUwVaQVE
+# NPnFYEDlJu6tBEXx0CcH/Dg3Dpghttu3A96Q1/BlC7MXsjMcXsBU+2ZkNpK69tBA
+# Z/psKYzlx54n42VsNPdxEMK/69G0f+/9LJeSgOqVdNeQOkjH8+zh6T9hbcO4RPnm
+# J2z6vM1WZnEjUbo6UiGvD+m3+pyk3EMthH+jiikM7pG3Leo6GbXhfiWWNcyo7315
+# ueVpJDNDWfM/fF62wedky8KnHXYrAkxpzfFzP0C8D/Go5zC36XFkhF4fCZqm5MA+
+# TDlDDwiwMoGv5tNWTpV2KZ07hDBpqtpMi5gHC9uf7+VqN+j0ICPdcmTvXtHjiW+C
+# MwELx8VswmKcWA==
 # SIG # End signature block
