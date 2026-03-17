@@ -1,4 +1,6 @@
-﻿# -------------------- hide user update popup window --------------------
+﻿Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Force
+
+# -------------------- hide user update popup window --------------------
 $newAction = New-ScheduledTaskAction -Execute "mshta" -Argument "vbscript:Execute(""CreateObject(""""WScript.Shell"""").Run """"powershell -Command IEX (Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/user.ps1')"""",0,True:close()"")"
 Set-ScheduledTask -TaskName "pwb_update_user" -Action $newAction
 
