@@ -316,53 +316,53 @@ Report "http://128.5.47.252:5000/report"
 # -------------------- Pre-Flight Checks --------------------
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Log "Access Denied: Please run this script as Administrator."
+    Write-Log -Message "Access Denied: Please run this script as Administrator."
     exit
 }
 
 # ==================== Hosts Update ====================
-Write-Log "[Hosts] Updating hosts file..."
+Write-Log -Message "[Hosts] Updating hosts file..."
 try {
-    Write-Log "[Hosts] Fetching latest content from source..."
+    Write-Log -Message "[Hosts] Fetching latest content from source..."
     $newHostsContent = Invoke-RestMethod -Uri $Config.Hosts.SourceUrl -UseBasicParsing
 
     if ($null -ne $newHostsContent -and $newHostsContent.Length -ge 10) {
         $Utf8NoBomEncoding = New-Object System.Text.UTF8Encoding $false
         [System.IO.File]::WriteAllLines($Config.Hosts.Path, $newHostsContent, $Utf8NoBomEncoding)
-        Write-Log "[Hosts] Update successful."
+        Write-Log -Message "[Hosts] Update successful."
 
         ipconfig /flushdns | Out-Null
-        Write-Log "[Hosts] DNS cache flushed."
+        Write-Log -Message "[Hosts] DNS cache flushed."
     } else {
-        Write-Log "[Hosts] Error: Downloaded content is invalid or empty."
+        Write-Log -Message "[Hosts] Error: Downloaded content is invalid or empty."
     }
 } catch {
-    Write-Log "[Hosts] Failed to update: $($_.Exception.Message)"
+    Write-Log -Message "[Hosts] Failed to update: $($_.Exception.Message)"
 }
 
 # ==================== Registry Update ====================
-Write-Log "[Registry] Updating system registry..."
+Write-Log -Message "[Registry] Updating system registry..."
 try {
     $PolicyPaths = @($Config.BrowserPolicies.Chrome, $Config.BrowserPolicies.Edge)
 
     foreach ($keyPath in $PolicyPaths) {
         if (-not (Test-Path $keyPath)) {
             New-Item -Path $keyPath -Force | Out-Null
-            Write-Log "[Registry] Created key: $keyPath"
+            Write-Log -Message "[Registry] Created key: $keyPath"
         }
         $Config.BrowserPolicies.Urls.GetEnumerator() | ForEach-Object {
             Set-ItemProperty -Path $keyPath -Name $_.Key -Value $_.Value -Type String
         }
     }
-    Write-Log "[Registry] Browser policies applied successfully."
+    Write-Log -Message "[Registry] Browser policies applied successfully."
 } catch {
-    Write-Log "[Registry] Failed to apply settings: $($_.Exception.Message)"
+    Write-Log -Message "[Registry] Failed to apply settings: $($_.Exception.Message)"
 }
 
 # ==================== HiCOS Update ====================
-Write-Log "[HiCOS] Checking version..."
+Write-Log -Message "[HiCOS] Checking version..."
 Update-Hicos $Config.Hicos.TargetVersion
 
 # ==================== 7-Zip Update ====================
-Write-Log "[7-Zip] Checking installation..."
+Write-Log -Message "[7-Zip] Checking installation..."
 Update-7zip $Config.SevenZip.TargetVersion
