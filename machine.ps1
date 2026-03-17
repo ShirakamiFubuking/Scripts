@@ -278,14 +278,6 @@ $Config = @{
         }
     }
 }
-# -------------------- Helper Functions --------------------
-function Write-Log {
-    param([string]$Message)
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logEntry = "[$timestamp] $Message"
-    Write-Host $logEntry
-    $logEntry | Out-File -FilePath $Config.LogFile -Append -Encoding utf8
-}
 
 # -------------------- Install psm --------------------
 # $url = "http://128.5.47.252/Module.zip"
