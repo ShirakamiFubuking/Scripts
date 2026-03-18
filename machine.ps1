@@ -110,6 +110,40 @@ function Get-Office365-Login-Email {
     }
 }
 
+function Set-Default-WSUS {
+    $path = "HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate"
+    $auPath = "HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate\AU"
+    Remove-ItemProperty -Path $path -Name "FillEmptyContentUrls" -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path $auPath -Name "AutomaticMaintenanceEnabled" -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path $auPath -Name "ScheduledInstallFirstWeek" -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path $auPath -Name "ScheduledInstallSecondWeek" -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path $auPath -Name "ScheduledInstallThirdWeek" -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path $auPath -Name "ScheduledInstallFourthWeek" -ErrorAction SilentlyContinue
+    if (-not (Test-Path $path)) { New-Item -Path $path -Force }
+    Set-ItemProperty -Path $path -Name "WUServer" -Value "http://10.101.188.68:8530"
+    Set-ItemProperty -Path $path -Name "WUStatusServer" -Value "http://10.101.188.68:8530"
+    Set-ItemProperty -Path $path -Name "UpdateServiceUrlAlternate" -Value ""
+    Set-ItemProperty -Path $path -Name "DoNotEnforceEnterpriseTLSCertPinningForUpdateDetection" -Value 1 -Type DWord
+    if (-not (Test-Path $auPath)) { New-Item -Path $auPath -Force }
+    # 啟用檢測頻率 (1 = 啟用)
+    Set-ItemProperty -Path $auPath -Name "DetectionFrequencyEnabled" -Value 1 -Type DWord
+    # 檢測間隔 (4 小時)
+    Set-ItemProperty -Path $auPath -Name "DetectionFrequency" -Value 4 -Type DWord
+    # 自動安裝次要更新
+    Set-ItemProperty -Path $auPath -Name "AutoInstallMinorUpdates" -Value 1 -Type DWord
+    # AU 選項 (4 = 自動下載並排程安裝)
+    Set-ItemProperty -Path $auPath -Name "AUOptions" -Value 4 -Type DWord
+    # 排程安裝時間 (12 = 中午 12:00 或 00:00，視系統格式而定)
+    Set-ItemProperty -Path $auPath -Name "ScheduledInstallTime" -Value 12 -Type DWord
+    # 每週排程安裝
+    Set-ItemProperty -Path $auPath -Name "ScheduledInstallEveryWeek" -Value 1 -Type DWord
+    # 允許 Microsoft Update
+    Set-ItemProperty -Path $auPath -Name "AllowMUUpdateService" -Value 1 -Type DWord
+    # 強制使用 WUServer
+    Set-ItemProperty -Path $auPath -Name "UseWUServer" -Value 1 -Type DWord
+    Restart-Service -Name wuauserv
+}
+
 # Update-7zip -TargetVersion 25.01
 function Update-7zip {
     param(
@@ -319,6 +353,8 @@ if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Adm
     Write-Log -Message "Access Denied: Please run this script as Administrator."
     exit
 }
+
+Set-Default-WSUS
 
 # ==================== Hosts Update ====================
 Write-Log -Message "[Hosts] Updating hosts file..."
