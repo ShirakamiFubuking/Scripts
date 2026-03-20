@@ -22,26 +22,23 @@ function Get-Getool-Version {
 
 function Report {
     param(
-        [string]$Uri = "http://128.5.47.252:5000/report"
+        [string]$Uri = "http://128.5.47.252:5000/api/report"
     )
     $os = Get-CimInstance Win32_OperatingSystem
     $cpu = Get-CimInstance Win32_Processor
     $computer_info = @{
         # 唯一識別 ID (UUID)
         uuid = (Get-CimInstance Win32_ComputerSystemProduct).UUID
-        
+
         # 電腦名稱
         ComputerName = $env:COMPUTERNAME
-        
-        # 登入使用者
-        LoginUser = whoami
-        
+
         # 系統版本 (例如: Microsoft Windows 11 Pro)
         OS_Name = $os.Caption
-        
+
         # Build 版本 (例如: 22631)
         OS_Version = $os.Version
-        
+
         # 如果要獲取「所有」非虛擬網卡，可將 Where 條件改為 { $_.InterfaceAlias -notlike "*Loopback*" }
         Network_Interfaces = @(
             Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike "127.0.0.1" } | ForEach-Object {
@@ -60,7 +57,7 @@ function Report {
     $computer_info | Format-Table -AutoSize
 
     # 強制使用 UTF8 編碼轉換 JSON
-    $jsonBody = $computer_info | ConvertTo-Json -Compress
+    $jsonBody = $computer_info | ConvertTo-Json -Depth 10 -Compress
     # 在 Content-Type 中明確指定 charset=utf-8
     Write-Log -Message $jsonBody
     try {
@@ -70,7 +67,20 @@ function Report {
                         -ContentType "application/json; charset=utf-8"
         Write-Log -Message "report successed"
     } catch {
-        Write-Log -Message "report failed"
+        # 取得錯誤回應
+        $errorMessage = $_.Exception.Message
+        
+        # 嘗試讀取 Server 回傳的 Body (例如 Gin 回傳的 {"error": "..."})
+        if ($_.Exception.Response) {
+            $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+            $responseBody = $reader.ReadToEnd()
+            $statusCode = [int]$_.Exception.Response.StatusCode
+            
+            Write-Log -Message "report failed! HTTP $statusCode"
+            Write-Log -Message "Server Response: $responseBody"
+        } else {
+            Write-Log -Message "report failed: $errorMessage"
+        }
     }
 }
 # 桌面顯示控制台等等
@@ -107,9 +117,9 @@ function Set-Default-WSUS {
 
     # --- 開始邏輯判斷 ---
     if ($currentWSUS -eq $targetWSUS) {
-        Write-Log -Message "設定檢查：目前 WSUS 伺服器已正確設定為 $targetWSUS。無需變更。"
+        Write-Log -Message "WSUS OK!!"
     } else {
-        Write-Log -Message "設定檢查：偵測到設定不符（目前為：$currentWSUS），正在更新為 $targetWSUS..."
+        Write-Log -Message "change WSUS: $currentWSUS to $targetWSUS ..."
 
         # 1. 確保路徑存在
         if (-not (Test-Path $wpPath)) { New-Item -Path $wpPath -Force | Out-Null }
@@ -151,10 +161,10 @@ function Set-Default-WSUS {
         }
 
         # 5. 重啟服務使設定生效
-        Write-Log -Message "正在重啟 Windows Update 服務以套用變更..."
+        Write-Log -Message "restart WSUS service..."
         Restart-Service -Name wuauserv -Force
         
-        Write-Log -Message "設定更新完成！"
+        Write-Log -Message "service restarted"
     }
 }
 
@@ -359,7 +369,7 @@ Remove-Item -Recurse "C:\Program Files\WindowsPowerShell\Modules\LogTool"
 Remove-Item -Recurse "C:\Program Files\WindowsPowerShell\Modules\Report"
 Remove-Item -Recurse "C:\Program Files\WindowsPowerShell\Modules\UpdateTools"
 Remove-Item -Recurse "C:\Program Files\WindowsPowerShell\Modules\GeTools"
-Report "http://128.5.47.252:5000/report"
+Report
 
 # -------------------- Pre-Flight Checks --------------------
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())

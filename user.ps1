@@ -49,7 +49,7 @@ function Get-Office365-Login-Email {
 
 function Report {
     param(
-        [string]$Uri = "http://128.5.47.252:5000/report_cu"
+        [string]$Uri = "http://128.5.47.252:5000/api/report_cu"
     )
     $cu_info = @{
         # 唯一識別 ID (UUID)
