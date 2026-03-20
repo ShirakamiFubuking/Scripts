@@ -40,7 +40,7 @@ function Get-Office365-Login-Email {
         $path2 = "HKCU:\SOFTWARE\Microsoft\Office\16.0\Common\Licensing\LicensingNext\LicenseIdToEmailMapping"
         try {
             $emailMapping = (Get-ItemProperty -Path $path2 -Name $licensedUserId -ErrorAction Stop).$licensedUserId
-            Write-Host $emailMapping -ForegroundColor Green
+            Write-Output $emailMapping
         } catch {
             Write-Host "在對應路徑下找不到名稱為 [$licensedUserId] 的值。" -ForegroundColor Yellow
         }
@@ -76,3 +76,5 @@ function Report {
         Write-Log -Message "report failed"
     }
 }
+
+Report
