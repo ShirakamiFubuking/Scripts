@@ -91,57 +91,71 @@ function Show-Control {
     Stop-Process -Name explorer -Force
 }
 
-function Get-Office365-Login-Email {
-    # 1. 定義第一個路徑並讀取 NextUserLicensingLicensedUserIds 的值
-    $path1 = "HKCU:\SOFTWARE\Microsoft\Office\16.0\Common\Licensing"
-    $licensedUserId = (Get-ItemProperty -Path $path1 -Name "NextUserLicensingLicensedUserIds" -ErrorAction SilentlyContinue).NextUserLicensingLicensedUserIds
-    if ($null -eq $licensedUserId) {
-        Write-Host "找不到第一個機碼值，請確認路徑或權限。" -ForegroundColor Red
-    } else {
-        # Write-Host "讀取到的 User ID: $licensedUserId" -ForegroundColor Cyan
-        # 2. 定義第二個路徑，並使用剛才讀到的值作為名稱來搜尋
-        $path2 = "HKCU:\SOFTWARE\Microsoft\Office\16.0\Common\Licensing\LicensingNext\LicenseIdToEmailMapping"
-        try {
-            $emailMapping = (Get-ItemProperty -Path $path2 -Name $licensedUserId -ErrorAction Stop).$licensedUserId
-            Write-Host $emailMapping -ForegroundColor Green
-        } catch {
-            Write-Host "在對應路徑下找不到名稱為 [$licensedUserId] 的值。" -ForegroundColor Yellow
-        }
-    }
-}
-
 function Set-Default-WSUS {
-    $path = "HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate"
+    # 定義目標 WSUS 伺服器網址
+    $targetWSUS = "http://10.101.188.68:8530"
+
+    # 定義註冊表路徑
+    $wpPath = "HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate"
     $auPath = "HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate\AU"
-    Remove-ItemProperty -Path $path -Name "FillEmptyContentUrls" -ErrorAction SilentlyContinue
-    Remove-ItemProperty -Path $auPath -Name "AutomaticMaintenanceEnabled" -ErrorAction SilentlyContinue
-    Remove-ItemProperty -Path $auPath -Name "ScheduledInstallFirstWeek" -ErrorAction SilentlyContinue
-    Remove-ItemProperty -Path $auPath -Name "ScheduledInstallSecondWeek" -ErrorAction SilentlyContinue
-    Remove-ItemProperty -Path $auPath -Name "ScheduledInstallThirdWeek" -ErrorAction SilentlyContinue
-    Remove-ItemProperty -Path $auPath -Name "ScheduledInstallFourthWeek" -ErrorAction SilentlyContinue
-    if (-not (Test-Path $path)) { New-Item -Path $path -Force }
-    Set-ItemProperty -Path $path -Name "WUServer" -Value "http://10.101.188.68:8530"
-    Set-ItemProperty -Path $path -Name "WUStatusServer" -Value "http://10.101.188.68:8530"
-    Set-ItemProperty -Path $path -Name "UpdateServiceUrlAlternate" -Value ""
-    Set-ItemProperty -Path $path -Name "DoNotEnforceEnterpriseTLSCertPinningForUpdateDetection" -Value 1 -Type DWord
-    if (-not (Test-Path $auPath)) { New-Item -Path $auPath -Force }
-    # 啟用檢測頻率 (1 = 啟用)
-    Set-ItemProperty -Path $auPath -Name "DetectionFrequencyEnabled" -Value 1 -Type DWord
-    # 檢測間隔 (4 小時)
-    Set-ItemProperty -Path $auPath -Name "DetectionFrequency" -Value 4 -Type DWord
-    # 自動安裝次要更新
-    Set-ItemProperty -Path $auPath -Name "AutoInstallMinorUpdates" -Value 1 -Type DWord
-    # AU 選項 (4 = 自動下載並排程安裝)
-    Set-ItemProperty -Path $auPath -Name "AUOptions" -Value 4 -Type DWord
-    # 排程安裝時間 (12 = 中午 12:00 或 00:00，視系統格式而定)
-    Set-ItemProperty -Path $auPath -Name "ScheduledInstallTime" -Value 12 -Type DWord
-    # 每週排程安裝
-    Set-ItemProperty -Path $auPath -Name "ScheduledInstallEveryWeek" -Value 1 -Type DWord
-    # 允許 Microsoft Update
-    Set-ItemProperty -Path $auPath -Name "AllowMUUpdateService" -Value 1 -Type DWord
-    # 強制使用 WUServer
-    Set-ItemProperty -Path $auPath -Name "UseWUServer" -Value 1 -Type DWord
-    Restart-Service -Name wuauserv
+
+    # 檢查路徑是否存在並讀取目前的 WUServer 設定
+    $currentWSUS = $null
+    if (Test-Path $wpPath) {
+        $currentWSUS = (Get-ItemProperty -Path $wpPath -Name "WUServer" -ErrorAction SilentlyContinue).WUServer
+    }
+
+    # --- 開始邏輯判斷 ---
+    if ($currentWSUS -eq $targetWSUS) {
+        Write-Log -Message "設定檢查：目前 WSUS 伺服器已正確設定為 $targetWSUS。無需變更。"
+    } else {
+        Write-Log -Message "設定檢查：偵測到設定不符（目前為：$currentWSUS），正在更新為 $targetWSUS..."
+
+        # 1. 確保路徑存在
+        if (-not (Test-Path $wpPath)) { New-Item -Path $wpPath -Force | Out-Null }
+        if (-not (Test-Path $auPath)) { New-Item -Path $auPath -Force | Out-Null }
+
+        # 2. 寫入 WindowsUpdate 核心設定
+        $wpSettings = @{
+            "WUServer" = $targetWSUS
+            "WUStatusServer" = $targetWSUS
+            "UpdateServiceUrlAlternate" = ""
+            "DoNotEnforceEnterpriseTLSCertPinningForUpdateDetection" = 1
+        }
+        foreach ($name in $wpSettings.Keys) {
+            Set-ItemProperty -Path $wpPath -Name $name -Value $wpSettings[$name] -Type String -ErrorAction SilentlyContinue
+        }
+        # 修正 DWord 型別
+        Set-ItemProperty -Path $wpPath -Name "DoNotEnforceEnterpriseTLSCertPinningForUpdateDetection" -Value 1 -Type DWord
+
+        # 3. 寫入 AU (自動更新) 設定
+        $auSettings = @{
+            "DetectionFrequencyEnabled" = 1
+            "DetectionFrequency"        = 4
+            "AutoInstallMinorUpdates"   = 1
+            "AUOptions"                 = 4
+            "ScheduledInstallTime"      = 12
+            "ScheduledInstallEveryWeek" = 1
+            "AllowMUUpdateService"      = 1
+            "UseWUServer"               = 1
+        }
+        foreach ($name in $auSettings.Keys) {
+            Set-ItemProperty -Path $auPath -Name $name -Value $auSettings[$name] -Type DWord
+        }
+
+        # 4. 刪除不需要的舊標記 (對應 **del.)
+        $toDelete = @("FillEmptyContentUrls", "AutomaticMaintenanceEnabled", "ScheduledInstallFirstWeek", "ScheduledInstallSecondWeek", "ScheduledInstallThirdWeek", "ScheduledInstallFourthWeek")
+        foreach ($item in $toDelete) {
+            Remove-ItemProperty -Path $wpPath -Name $item -ErrorAction SilentlyContinue
+            Remove-ItemProperty -Path $auPath -Name $item -ErrorAction SilentlyContinue
+        }
+
+        # 5. 重啟服務使設定生效
+        Write-Log -Message "正在重啟 Windows Update 服務以套用變更..."
+        Restart-Service -Name wuauserv -Force
+        
+        Write-Log -Message "設定更新完成！"
+    }
 }
 
 # Update-7zip -TargetVersion 25.01
