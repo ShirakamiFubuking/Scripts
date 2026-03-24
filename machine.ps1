@@ -48,7 +48,6 @@ function Report {
         OS_Version = $os.Version
     }
     $jsonBody = $computer_info | ConvertTo-Json -Depth 10 -Compress
-    Write-Host $jsonBody
     # 在 Content-Type 中明確指定 charset=utf-8
     Write-Log -Message $jsonBody
     try {
