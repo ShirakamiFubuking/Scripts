@@ -26,38 +26,29 @@ function Report {
     )
     $os = Get-CimInstance Win32_OperatingSystem
     $cpu = Get-CimInstance Win32_Processor
-    $computer_info = @{
-        # 唯一識別 ID (UUID)
-        uuid = (Get-CimInstance Win32_ComputerSystemProduct).UUID
-
-        # 電腦名稱
-        ComputerName = $env:COMPUTERNAME
-
-        # 系統版本 (例如: Microsoft Windows 11 Pro)
-        OS_Name = $os.Caption
-
-        # Build 版本 (例如: 22631)
-        OS_Version = $os.Version
-
-        # 如果要獲取「所有」非虛擬網卡，可將 Where 條件改為 { $_.InterfaceAlias -notlike "*Loopback*" }
-        Network_Interfaces = @(
-            Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike "127.0.0.1" } | ForEach-Object {
-                $adapter = Get-NetAdapter -InterfaceIndex $_.InterfaceIndex
-                [PSCustomObject]@{
-                    IPAddress  = $_.IPAddress
-                    MACAddress = $adapter.MacAddress
-                    Interface  = $adapter.InterfaceAlias
-                }
+    $networkList = @()
+    Get-NetIPAddress -AddressFamily IPv4 |
+    Where-Object { $_.IPAddress -notlike "127.0.0.1" } |
+    ForEach-Object {
+        $adapter = Get-NetAdapter -InterfaceIndex $_.InterfaceIndex
+        if ($adapter) {
+            $networkList += [PSCustomObject]@{
+                IPAddress  = $_.IPAddress
+                MACAddress = ($adapter.MacAddress -replace '-', ':').ToLower()
+                Interface  = $adapter.InterfaceAlias
             }
-        )
-        
-        # CPU 型號
-        CPU_Model = $cpu.Name
+        }
     }
-    $computer_info | Format-Table -AutoSize
-
-    # 強制使用 UTF8 編碼轉換 JSON
+    $computer_info = @{
+        uuid = (Get-CimInstance Win32_ComputerSystemProduct).UUID
+        CPU_Model = $cpu.Name
+        Network_Interfaces = $networkList
+        ComputerName = $env:COMPUTERNAME
+        OS_Name = $os.Caption
+        OS_Version = $os.Version
+    }
     $jsonBody = $computer_info | ConvertTo-Json -Depth 10 -Compress
+    Write-Host $jsonBody
     # 在 Content-Type 中明確指定 charset=utf-8
     Write-Log -Message $jsonBody
     try {
