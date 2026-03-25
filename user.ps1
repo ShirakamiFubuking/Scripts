@@ -28,23 +28,32 @@ $TaskName = "pwb_update_machine"
 $Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
 Set-ScheduledTask -TaskName $TaskName -Principal $Principal
 
+function Get-Office365-Login-Email-From-Cache {
+    $path = "HKCU:\SOFTWARE\Microsoft\Office\16.0\Common\LanguageResources\LocalCache" # \RegionalAndLanguageSettingsAccount"
+    Write-Output (Get-ItemProperty -Path $path -Name "RegionalAndLanguageSettingsAccount").RegionalAndLanguageSettingsAccount
+}
 function Get-Office365-Login-Email {
-    # 1. 定義第一個路徑並讀取 NextUserLicensingLicensedUserIds 的值
-    $path1 = "HKCU:\SOFTWARE\Microsoft\Office\16.0\Common\Licensing"
-    $licensedUserId = (Get-ItemProperty -Path $path1 -Name "NextUserLicensingLicensedUserIds" -ErrorAction SilentlyContinue).NextUserLicensingLicensedUserIds
-    if ($null -eq $licensedUserId) {
-        Write-Host "找不到第一個機碼值，請確認路徑或權限。" -ForegroundColor Red
-    } else {
-        # Write-Host "讀取到的 User ID: $licensedUserId" -ForegroundColor Cyan
-        # 2. 定義第二個路徑，並使用剛才讀到的值作為名稱來搜尋
-        $path2 = "HKCU:\SOFTWARE\Microsoft\Office\16.0\Common\Licensing\LicensingNext\LicenseIdToEmailMapping"
-        try {
-            $emailMapping = (Get-ItemProperty -Path $path2 -Name $licensedUserId -ErrorAction Stop).$licensedUserId
-            Write-Output $emailMapping
-        } catch {
-            Write-Host "在對應路徑下找不到名稱為 [$licensedUserId] 的值。" -ForegroundColor Yellow
-        }
-    }
+    $path = "HKCU:\SOFTWARE\Microsoft\Office\16.0\Common\LanguageResources\LocalCache"
+    $email =  (Get-ItemProperty -Path $path -Name "RegionalAndLanguageSettingsAccount").RegionalAndLanguageSettingsAccount
+    Write-Output $email
+    # # 1. 定義第一個路徑並讀取 NextUserLicensingLicensedUserIds 的值
+    # $path1 = "HKCU:\SOFTWARE\Microsoft\Office\16.0\Common\Licensing"
+    # $licensedUserId = (Get-ItemProperty -Path $path1 -Name "NextUserLicensingLicensedUserIds" -ErrorAction SilentlyContinue).NextUserLicensingLicensedUserIds
+    # if ($null -eq $licensedUserId) {
+    #     Write-Host "找不到第一個機碼值，請確認路徑或權限。" -ForegroundColor Red
+    #     Write-Output "error 1"
+    # } else {
+    #     # Write-Host "讀取到的 User ID: $licensedUserId" -ForegroundColor Cyan
+    #     # 2. 定義第二個路徑，並使用剛才讀到的值作為名稱來搜尋
+    #     $path2 = "HKCU:\SOFTWARE\Microsoft\Office\16.0\Common\Licensing\LicensingNext\LicenseIdToEmailMapping"
+    #     try {
+    #         $emailMapping = (Get-ItemProperty -Path $path2 -Name $licensedUserId -ErrorAction Stop).$licensedUserId
+    #         Write-Output $emailMapping
+    #     } catch {
+    #         Write-Host "在對應路徑下找不到名稱為 [$licensedUserId] 的值。" -ForegroundColor Yellow
+    #         Write-Output "error 2"
+    #     }
+    # }
 }
 
 function Report {
