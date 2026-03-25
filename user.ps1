@@ -72,7 +72,7 @@ function Report {
     $cu_info | Format-Table -AutoSize
 
     # 強制使用 UTF8 編碼轉換 JSON
-    $jsonBody = $cu_info | ConvertTo-Json -Compress
+    $jsonBody = $cu_info | ConvertTo-Json -Depth 10 -Compress
     # 在 Content-Type 中明確指定 charset=utf-8
     Write-Log -Message $jsonBody
     try {
