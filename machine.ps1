@@ -46,6 +46,7 @@ function Report {
         ComputerName = $env:COMPUTERNAME
         OS_Name = $os.Caption
         OS_Version = $os.Version
+        HasWM7 = [bool](Get-Command "pcinfo7" -ErrorAction SilentlyContinue)
     }
     $jsonBody = $computer_info | ConvertTo-Json -Depth 10 -Compress
     # 在 Content-Type 中明確指定 charset=utf-8
