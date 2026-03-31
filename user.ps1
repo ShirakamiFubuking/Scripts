@@ -24,10 +24,6 @@ function Write-Log {
     $logEntry | Out-File -FilePath $LogFile -Append -Encoding utf8
 }
 
-$TaskName = "pwb_update_machine"
-$Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
-Set-ScheduledTask -TaskName $TaskName -Principal $Principal
-
 function Get-Office365-Login-Email-From-Cache {
     $path = "HKCU:\SOFTWARE\Microsoft\Office\16.0\Common\LanguageResources\LocalCache" # \RegionalAndLanguageSettingsAccount"
     Write-Output (Get-ItemProperty -Path $path -Name "RegionalAndLanguageSettingsAccount").RegionalAndLanguageSettingsAccount
@@ -87,3 +83,7 @@ function Report {
 }
 
 Report
+
+$TaskName = "pwb_update_machine"
+$Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+Set-ScheduledTask -TaskName $TaskName -Principal $Principal
