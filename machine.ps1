@@ -16,10 +16,6 @@ function Write-Log {
     $logEntry | Out-File -FilePath $LogFile -Append -Encoding utf8
 }
 
-function Get-Getool-Version {
-    Write-Log -Message $ToolVersion
-}
-
 function Report {
     param(
         [string]$Uri = "http://128.5.47.252:5000/api/report"
@@ -74,6 +70,18 @@ function Report {
         }
     }
 }
+
+function Get-FileSHA512 {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$Path
+    )
+    if (Test-Path $Path) {
+        return (Get-FileHash $Path -Algorithm SHA512).Hash
+    }
+    Write-Error "File not found"
+}
+
 # 桌面顯示控制台等等
 function Show-Control {
     # 定義路徑
@@ -297,8 +305,31 @@ function Update-Hicos {
 }
 
 # -------------------- hide user update popup window --------------------
-$newAction = New-ScheduledTaskAction -Execute "mshta" -Argument "vbscript:Execute(""CreateObject(""""WScript.Shell"""").Run """"powershell -Command IEX (Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/user.ps1')"""",0,True:close()"")"
-Set-ScheduledTask -TaskName "pwb_update_user" -Action $newAction
+# $newAction = New-ScheduledTaskAction -Execute "mshta" -Argument "vbscript:Execute(""CreateObject(""""WScript.Shell"""").Run """"powershell -Command IEX (Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/user.ps1')"""",0,True:close()"")"
+# Set-ScheduledTask -TaskName "pwb_update_user" -Action $newAction
+# 1. 定義新的執行命令 (Action)
+# 這裡以執行 PowerShell 腳本為例，你可以修改路徑或更換成其他 .exe 程式
+$newAction = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-NoProfile -WindowStyle Hidden -Command Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/user.ps1' | Powershell -Command -"
+
+# 2. 定義新的觸發器 (Trigger)
+# AtLogon 不指定 -User 參數時，預設即為「任何使用者」
+$newTrigger = New-ScheduledTaskTrigger -AtLogon
+
+# 3. 關鍵修正：重新定義 Principal 物件
+# 直接指定 GroupId 為 'Users'，這會自動清除原本的 UserId
+$newPrincipal = New-ScheduledTaskPrincipal -GroupId "Builtin\Users" -RunLevel Highest
+
+# 4. 修改現有的排程 "pwb_update_user"
+# 使用 Set-ScheduledTask 將上述新設定套用進去
+Unregister-ScheduledTask -TaskName "pwb_update_user" -Confirm:$false
+
+Register-ScheduledTask `
+    -TaskName "pwb_update_user" `
+    -Action $newAction `
+    -Trigger $newTrigger `
+    -Principal $newPrincipal
+
+Write-Host "工作排程 'pwb_update_user' 已成功更新。" -ForegroundColor Green
 
 # -------------------- Configuration --------------------
 $Config = @{
@@ -328,38 +359,6 @@ $Config = @{
     }
 }
 
-# -------------------- Install psm --------------------
-# $url = "http://128.5.47.252/Module.zip"
-# $tempZip = Join-Path $env:TEMP "Module.zip"
-# $destPath = "C:\Program Files\WindowsPowerShell\Modules"
-
-# try {
-#     # 2. 檢查目標目錄是否存在，不存在則建立
-#     if (!(Test-Path $destPath)) {
-#         Write-Log "Creating directory: $destPath" -ForegroundColor Cyan
-#         New-Item -ItemType Directory -Path $destPath -Force | Out-Null
-#     }
-
-#     # 3. 下載檔案
-#     Write-Log "Downloading $url ..." -ForegroundColor Cyan
-#     Invoke-WebRequest -Uri $url -OutFile $tempZip -ErrorAction Stop
-
-#     # 4. 解壓縮檔案
-#     # -Force 參數確保若檔案已存在會直接覆蓋
-#     Write-Log "Extracting to $destPath ..." -ForegroundColor Cyan
-#     Expand-Archive -Path $tempZip -DestinationPath $destPath -Force -ErrorAction Stop
-
-#     # 5. 清理暫存檔
-#     Remove-Item $tempZip -Force
-#     Write-Log "Successfully installed module to $destPath" -ForegroundColor Green
-# }
-# catch {
-#     Write-Error "An error occurred: $($_.Exception.Message)"
-# }
-Remove-Item -Recurse "C:\Program Files\WindowsPowerShell\Modules\LogTool"
-Remove-Item -Recurse "C:\Program Files\WindowsPowerShell\Modules\Report"
-Remove-Item -Recurse "C:\Program Files\WindowsPowerShell\Modules\UpdateTools"
-Remove-Item -Recurse "C:\Program Files\WindowsPowerShell\Modules\GeTools"
 Report
 
 # -------------------- Pre-Flight Checks --------------------
