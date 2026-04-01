@@ -317,7 +317,10 @@ $newTrigger = New-ScheduledTaskTrigger -AtLogon
 
 # 3. 關鍵修正：重新定義 Principal 物件
 # 直接指定 GroupId 為 'Users'，這會自動清除原本的 UserId
-$newPrincipal = New-ScheduledTaskPrincipal -GroupId "Builtin\Users" -RunLevel Highest
+$newPrincipal = New-ScheduledTaskPrincipal `
+    -UserId "SYSTEM" `
+    -LogonType Interactive `
+    -RunLevel Highest
 
 # 4. 修改現有的排程 "pwb_update_user"
 # 使用 Set-ScheduledTask 將上述新設定套用進去
