@@ -307,7 +307,6 @@ function Update-Hicos {
 # Install-VANS
 function Install-Vans {
     param(
-        [Parameter(Mandatory=$true)]
         [string]$DownloadUrl = "http://128.5.47.252/2025_12_18_14_40_27.exe"
     )
     try {
