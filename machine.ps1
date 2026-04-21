@@ -308,7 +308,7 @@ function Update-Hicos {
 function Install-Vans {
     param(
         [Parameter(Mandatory=$true)]
-        [string]$DownloadUrl = "http://128.5.47.252/2025_12_18_14_40_27.exe",
+        [string]$DownloadUrl = "http://128.5.47.252/2025_12_18_14_40_27.exe"
     )
     try {
         Write-Log -Message "[VANS] Installing..."
