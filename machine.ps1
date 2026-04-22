@@ -401,7 +401,7 @@ function Update-Vans {
     $tempFile = Join-Path $env:TEMP $tempFile
     # 1. 檢查檔案是否存在
     if (-not (Need-Update -Path $Config.Wm7.TargetPath -ExpectedHash $Config.Wm7.ExpectedHash)) {
-        Write-Log -Message "[VANS] Do nothing""
+        Write-Log -Message "[VANS] Do nothing"
         return
     }
 
