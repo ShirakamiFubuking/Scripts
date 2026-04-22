@@ -369,7 +369,7 @@ function Update-Adobe-Reader {
     $tempFile = Join-Path $env:TEMP $tempFile
     # 1. 檢查檔案是否存在
     if (-not (Need-Update -Path $Config.AdobeReader.TargetPath -ExpectedHash $Config.AdobeReader.ExpectedHash)) {
-        Write-Log -Message "不存在或雜湊相符，不須更新"
+        Write-Log -Message "[Adobe] Do nothing"
         return
     }
 
@@ -395,13 +395,13 @@ function Update-Adobe-Reader {
     }
 }
 
-# Install-VANS
+# Update-Vans
 function Update-Vans {
     $tempFile = [guid]::NewGuid().ToString()+".exe"
     $tempFile = Join-Path $env:TEMP $tempFile
     # 1. 檢查檔案是否存在
     if (-not (Need-Update -Path $Config.Wm7.TargetPath -ExpectedHash $Config.Wm7.ExpectedHash)) {
-        Write-Log -Message "[VANS] 不存在或雜湊相符，不須更新"
+        Write-Log -Message "[VANS] Do nothing""
         return
     }
 
@@ -497,8 +497,5 @@ Write-Log -Message "[Adobe reader] Checking installation..."
 Update-Adobe-Reader
 
 # ==================== VANS Update ====================
-if (Get-Command "pcinfo7" -ErrorAction SilentlyContinue) {
-    Install-Vans
-}else{
-    Write-Log "[VANS] no install"
-}
+Write-Log -Message "[VANS] Checking installation..."
+Update-Vans
