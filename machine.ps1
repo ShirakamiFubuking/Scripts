@@ -1,4 +1,42 @@
-﻿# Write-Log -LogFile <filepath> -Message <log message> -Level <INFO(default), WARN, ERROR>
+﻿# -------------------- Configuration --------------------
+$Config = @{
+    LogFile         = Join-Path $env:TEMP "pwb_update_machine.log"
+    AdobeReader = @{
+        TargetPath = "C:\Program Files (x86)\Adobe\Acrobat Reader DC\Reader\AcroRd32.exe"
+        ExpectedHash = "8BD77B4D087D5B8C5373D5BE1A40BDA44AEAAB8A614E1F05484831F929559800AC9C215F83AC8502E1EC69D6B4B7B0FD3E781921D6482F8B2E139E823957E891"
+        DownloadUrl = "http://128.5.47.252/Reader_tw_install.exe"
+    }
+    Hicos = @{
+        TargetVersion = "1.3.4.103349"
+        DownloadUrl   = "https://api-hisecurecdn.cdn.hinet.net/MOICA/HiCOS_Client.zip"
+        ServiceUrl    = "http://127.0.0.1:61161"
+    }
+    SevenZip = @{
+        TargetVersion = "25.01"
+        Architecture  = "x64"  # "x64" or "x86"
+        # 7-Zip 官網下載網址會隨版本變動，腳本會動態產生
+    }
+    Wm7 = @{
+        TargetPath = "C:\Program Files\WW2017CF\wmcSystem7.exe"
+        ExpectedHash = "137FADD215E2BC1E826D6929FF4AA54317B6C2E42E87E827D7ED9E68E0408C45DB59C4C7DF7F434AA49BF4081F1C5BB8F009A63DD4241CD347EE6676883C4A8F"
+        DownloadUrl = "http://128.5.47.252/2025_12_18_14_40_27.exe"
+    }
+    Hosts = @{
+        Path          = "$env:SystemRoot\System32\drivers\etc\hosts"
+        SourceUrl     = "https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/hosts"
+    }
+    BrowserPolicies = @{
+        Chrome = "HKLM:\SOFTWARE\Policies\Google\Chrome\PopupsAllowedForUrls"
+        Edge   = "HKLM:\SOFTWARE\Policies\Microsoft\Edge\PopupsAllowedForUrls"
+        Urls   = @{
+            "1" = "https://ecpa.dgpa.gov.tw"
+            "2" = "https://dm.kcg.gov.tw:443"
+            "3" = "http://localhost:61161"
+        }
+    }
+}
+
+# Write-Log -LogFile <filepath> -Message <log message> -Level <INFO(default), WARN, ERROR>
 function Write-Log {
     param(
         [string]$LogFile = (Join-Path $env:TEMP "pwb_update.log"),
@@ -80,6 +118,28 @@ function Get-FileSHA512 {
         return (Get-FileHash $Path -Algorithm SHA512).Hash
     }
     Write-Error "File not found"
+}
+
+function Need-Update {
+    param (
+        [Parameter(Mandatory=$true)] [string]$Path,
+        [Parameter(Mandatory=$true)] [string]$ExpectedHash
+    )
+    # 若檔案不存在，視為不需更新（依據您的需求：若不存在則結束函數）
+    if (-not (Test-Path $Path)) {
+        # Write-Log "[Need-Update] 目標檔案不存在，跳過更新。"
+        return $false
+    }
+
+    # 取得目前雜湊值並比對
+    $currentHash = Get-FileSHA512 -Path $Path
+    if ($currentHash -eq $ExpectedHash) {
+        # Write-Log "[Need-Update] 雜湊值符合，不需要更新。"
+        return $false
+    }
+
+    # Write-Log "[Need-Update] 雜湊值不符，需要執行更新。"
+    return $true
 }
 
 # 桌面顯示控制台等等
@@ -304,33 +364,66 @@ function Update-Hicos {
     }
 }
 
-# Install-VANS
-function Install-Vans {
-    param(
-        [string]$DownloadUrl = "http://128.5.47.252/2025_12_18_14_40_27.exe"
-    )
+function Update-Adobe-Reader {
+    $tempFile = [guid]::NewGuid().ToString()+".exe"
+    $tempFile = Join-Path $env:TEMP $tempFile
+    # 1. 檢查檔案是否存在
+    if (-not (Need-Update -Path $Config.AdobeReader.TargetPath -ExpectedHash $Config.AdobeReader.ExpectedHash)) {
+        Write-Log -Message "不存在或雜湊相符，不須更新"
+        return
+    }
+
+    # 3. 若雜湊值不符，執行下載與更新
+    Write-Log -Message "版本不符，正在從 $Config.AdobeReader.DownloadUrl 下載更新檔..."
     try {
-        Write-Log -Message "[VANS] Installing..."
-
-        $Installer = Join-Path $env:TEMP "vans.exe"
-        # Download installer
-        Write-Log -Message "[VANS] Downloading package from $DownloadUrl"
-        Invoke-WebRequest -Uri $DownloadUrl -OutFile $Installer -ErrorAction Stop
-
-        # Run installer
-        $proc = Start-Process -FilePath $Installer -Wait -PassThru
-        if ($proc.ExitCode -eq 0) {
-            Write-Log -Message "[VANS] Installation successful."
-        } else {
-            Write-Log -Message "[VANS] Installation failed with ExitCode: $($proc.ExitCode)"
+        Invoke-WebRequest -Uri $Config.AdobeReader.DownloadUrl -OutFile $tempFile -ErrorAction Stop
+        
+        Write-Log -Message "正在執行安裝程式..."
+        # 使用 Start-Process 並等待結束 (-Wait)
+        Start-Process -FilePath $tempFile -ArgumentList "/sAll /rs" -Wait -WindowStyle Hidden
+        
+        Write-Log -Message "更新完畢，清理暫存檔案。"
+    }
+    catch {
+        Write-Log -Message "更新過程中發生錯誤: $($_.Exception.Message)"
+    }
+    finally {
+        # 4. 刪除下載的暫存檔
+        if (Test-Path $tempFile) {
+            Remove-Item $tempFile -Force
         }
+    }
+}
 
-        # Cleanup temporary files
-        Write-Log -Message "[VANS] Cleaning up temporary files..."
-        if (Test-Path $Installer) { Remove-Item $Installer -Force }
-    } catch {
-        Write-Log -Message "[VANS] Error, something wrong?"
-        # Optionally: Trigger a fresh install logic here if the service is missing
+# Install-VANS
+function Update-Vans {
+    $tempFile = [guid]::NewGuid().ToString()+".exe"
+    $tempFile = Join-Path $env:TEMP $tempFile
+    # 1. 檢查檔案是否存在
+    if (-not (Need-Update -Path $Config.Wm7.TargetPath -ExpectedHash $Config.Wm7.ExpectedHash)) {
+        Write-Log -Message "[VANS] 不存在或雜湊相符，不須更新"
+        return
+    }
+
+    # 3. 若雜湊值不符，執行下載與更新
+    Write-Log -Message "版本不符，正在從 $Config.Wm7.DownloadUrl 下載更新檔..."
+    try {
+        Invoke-WebRequest -Uri $Config.Wm7.DownloadUrl -OutFile $tempFile -ErrorAction Stop
+        
+        Write-Log -Message "正在執行安裝程式..."
+        # 使用 Start-Process 並等待結束 (-Wait)
+        Start-Process -FilePath $tempFile -ArgumentList "/sAll /rs" -Wait -WindowStyle Hidden
+        
+        Write-Log -Message "更新完畢，清理暫存檔案。"
+    }
+    catch {
+        Write-Log -Message "更新過程中發生錯誤: $($_.Exception.Message)"
+    }
+    finally {
+        # 4. 刪除下載的暫存檔
+        if (Test-Path $tempFile) {
+            Remove-Item $tempFile -Force
+        }
     }
 }
 
@@ -359,35 +452,7 @@ Register-ScheduledTask `
     -Trigger $newTrigger `
     -Principal $newPrincipal
 
-Write-Host "工作排程 'pwb_update_user' 已成功更新。" -ForegroundColor Green
-
-# -------------------- Configuration --------------------
-$Config = @{
-    LogFile         = Join-Path $env:TEMP "pwb_update_machine.log"
-    Hicos = @{
-        TargetVersion = "1.3.4.103349"
-        DownloadUrl   = "https://api-hisecurecdn.cdn.hinet.net/MOICA/HiCOS_Client.zip"
-        ServiceUrl    = "http://127.0.0.1:61161"
-    }
-    SevenZip = @{
-        TargetVersion = "25.01"
-        Architecture  = "x64"  # "x64" or "x86"
-        # 7-Zip 官網下載網址會隨版本變動，腳本會動態產生
-    }
-    Hosts = @{
-        Path          = "$env:SystemRoot\System32\drivers\etc\hosts"
-        SourceUrl     = "https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/hosts"
-    }
-    BrowserPolicies = @{
-        Chrome = "HKLM:\SOFTWARE\Policies\Google\Chrome\PopupsAllowedForUrls"
-        Edge   = "HKLM:\SOFTWARE\Policies\Microsoft\Edge\PopupsAllowedForUrls"
-        Urls   = @{
-            "1" = "https://ecpa.dgpa.gov.tw"
-            "2" = "https://dm.kcg.gov.tw:443"
-            "3" = "http://localhost:61161"
-        }
-    }
-}
+Write-Log "工作排程 'pwb_update_user' 已成功更新。" -ForegroundColor Green
 
 Report
 
@@ -399,26 +464,6 @@ if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Adm
 }
 
 Set-Default-WSUS
-
-# ==================== Hosts Update ====================
-Write-Log -Message "[Hosts] Updating hosts file..."
-try {
-    Write-Log -Message "[Hosts] Fetching latest content from source..."
-    $newHostsContent = Invoke-RestMethod -Uri $Config.Hosts.SourceUrl -UseBasicParsing
-
-    if ($null -ne $newHostsContent -and $newHostsContent.Length -ge 10) {
-        $Utf8NoBomEncoding = New-Object System.Text.UTF8Encoding $false
-        [System.IO.File]::WriteAllLines($Config.Hosts.Path, $newHostsContent, $Utf8NoBomEncoding)
-        Write-Log -Message "[Hosts] Update successful."
-
-        ipconfig /flushdns | Out-Null
-        Write-Log -Message "[Hosts] DNS cache flushed."
-    } else {
-        Write-Log -Message "[Hosts] Error: Downloaded content is invalid or empty."
-    }
-} catch {
-    Write-Log -Message "[Hosts] Failed to update: $($_.Exception.Message)"
-}
 
 # ==================== Registry Update ====================
 Write-Log -Message "[Registry] Updating system registry..."
@@ -446,6 +491,10 @@ Update-Hicos $Config.Hicos.TargetVersion
 # ==================== 7-Zip Update ====================
 Write-Log -Message "[7-Zip] Checking installation..."
 Update-7zip $Config.SevenZip.TargetVersion
+
+# ==================== 7-Zip Update ====================
+Write-Log -Message "[Adobe reader] Checking installation..."
+Update-Adobe-Reader
 
 # ==================== VANS Update ====================
 if (Get-Command "pcinfo7" -ErrorAction SilentlyContinue) {
