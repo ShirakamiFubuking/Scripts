@@ -21,10 +21,6 @@ $Config = @{
         ExpectedHash = "137FADD215E2BC1E826D6929FF4AA54317B6C2E42E87E827D7ED9E68E0408C45DB59C4C7DF7F434AA49BF4081F1C5BB8F009A63DD4241CD347EE6676883C4A8F"
         DownloadUrl = "http://128.5.47.252/2025_12_18_14_40_27.exe"
     }
-    Hosts = @{
-        Path          = "$env:SystemRoot\System32\drivers\etc\hosts"
-        SourceUrl     = "https://raw.githubusercontent.com/ShirakamiFubuking/Scripts/refs/heads/main/hosts"
-    }
     BrowserPolicies = @{
         Chrome = "HKLM:\SOFTWARE\Policies\Google\Chrome\PopupsAllowedForUrls"
         Edge   = "HKLM:\SOFTWARE\Policies\Microsoft\Edge\PopupsAllowedForUrls"
@@ -81,6 +77,7 @@ function Report {
         OS_Name = $os.Caption
         OS_Version = $os.Version
         HasWM7 = [bool](Get-Command "pcinfo7" -ErrorAction SilentlyContinue)
+        PhysicalDisk = Get-PhysicalDisk | Select-Object DeviceId, FriendlyName, MediaType, BusType, Size, HealthStatus
     }
     $jsonBody = $computer_info | ConvertTo-Json -Depth 10 -Compress
     # 在 Content-Type 中明確指定 charset=utf-8
@@ -120,25 +117,26 @@ function Get-FileSHA512 {
     Write-Error "File not found"
 }
 
-function Need-Update {
+# 如果$Path檔案存在且SHA512值不符合$ExpectedHash，則回傳$true
+function Test-UpdateNeeded {
     param (
         [Parameter(Mandatory=$true)] [string]$Path,
         [Parameter(Mandatory=$true)] [string]$ExpectedHash
     )
     # 若檔案不存在，視為不需更新（依據您的需求：若不存在則結束函數）
     if (-not (Test-Path $Path)) {
-        # Write-Log "[Need-Update] 目標檔案不存在，跳過更新。"
+        # Write-Log "[Test-UpdateNeeded] 目標檔案不存在，跳過更新。"
         return $false
     }
 
     # 取得目前雜湊值並比對
     $currentHash = Get-FileSHA512 -Path $Path
     if ($currentHash -eq $ExpectedHash) {
-        # Write-Log "[Need-Update] 雜湊值符合，不需要更新。"
+        # Write-Log "[Test-UpdateNeeded] 雜湊值符合，不需要更新。"
         return $false
     }
 
-    # Write-Log "[Need-Update] 雜湊值不符，需要執行更新。"
+    # Write-Log "[Test-UpdateNeeded] 雜湊值不符，需要執行更新。"
     return $true
 }
 
@@ -368,7 +366,7 @@ function Update-Adobe-Reader {
     $tempFile = [guid]::NewGuid().ToString()+".exe"
     $tempFile = Join-Path $env:TEMP $tempFile
     # 1. 檢查檔案是否存在
-    if (-not (Need-Update -Path $Config.AdobeReader.TargetPath -ExpectedHash $Config.AdobeReader.ExpectedHash)) {
+    if (-not (Test-UpdateNeeded -Path $Config.AdobeReader.TargetPath -ExpectedHash $Config.AdobeReader.ExpectedHash)) {
         Write-Log -Message "[Adobe] Do nothing"
         return
     }
@@ -400,7 +398,7 @@ function Update-Vans {
     $tempFile = [guid]::NewGuid().ToString()+".exe"
     $tempFile = Join-Path $env:TEMP $tempFile
     # 1. 檢查檔案是否存在
-    if (-not (Need-Update -Path $Config.Wm7.TargetPath -ExpectedHash $Config.Wm7.ExpectedHash)) {
+    if (-not (Test-UpdateNeeded -Path $Config.Wm7.TargetPath -ExpectedHash $Config.Wm7.ExpectedHash)) {
         Write-Log -Message "[VANS] Do nothing"
         return
     }
