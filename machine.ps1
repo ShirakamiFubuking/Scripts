@@ -497,3 +497,6 @@ Update-Adobe-Reader
 # ==================== VANS Update ====================
 Write-Log -Message "[VANS] Checking installation..."
 Update-Vans
+
+Disable-ScheduledTask -TaskName "iGoAudioTask"
+Disable-ScheduledTask -TaskName "iGoAudioTaskSession"
