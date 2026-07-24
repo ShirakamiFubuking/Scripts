@@ -12,7 +12,7 @@ $Config = @{
         ServiceUrl    = "http://127.0.0.1:61161"
     }
     SevenZip = @{
-        TargetVersion = "25.01"
+        TargetVersion = "26.02"
         Architecture  = "x64"  # "x64" or "x86"
         # 7-Zip 官網下載網址會隨版本變動，腳本會動態產生
     }
