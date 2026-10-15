@@ -7,7 +7,7 @@ $Config = @{
         DownloadUrl = "http://128.5.47.252/Reader_tw_install.exe"
     }
     Hicos = @{
-        TargetVersion = "1.3.4.103349"
+        TargetVersion = "1.3.4.103353"
         DownloadUrl   = "https://api-hisecurecdn.cdn.hinet.net/MOICA/HiCOS_Client.zip"
         ServiceUrl    = "http://127.0.0.1:61161"
     }
