@@ -1,4 +1,5 @@
 ﻿# -------------------- Configuration --------------------
+# use powershell 5.1 for compatibility
 $Config = @{
     LogFile         = Join-Path $env:TEMP "pwb_update_machine.log"
     AdobeReader = @{
@@ -41,6 +42,12 @@ function Write-Log {
         [string]$Message,
         [ValidateSet("INFO", "WARN", "ERROR")] [string]$Level = "INFO"
     )
+
+    $maxLogSize = 4KB
+    if ((Test-Path -LiteralPath $LogFile) -and ((Get-Item -LiteralPath $LogFile).Length -ge $maxLogSize)) {
+        Remove-Item -LiteralPath $LogFile -Force
+    }
+
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logEntry = "[$timestamp] [$Level] $Message"
     # write to console
